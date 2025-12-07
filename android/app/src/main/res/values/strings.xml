@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">dare-to-connect-app</string>
+    <string name="title_activity_main">dare-to-connect-app</string>
+    <string name="package_name">com.yourcompany.daretoconnect</string>
+    <string name="custom_url_scheme">com.yourcompany.daretoconnect</string>
+</resources>
