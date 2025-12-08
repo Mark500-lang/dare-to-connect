@@ -1,48 +1,34 @@
 {
-  "name": "dare-to-connect-app",
-  "version": "0.0.1",
+  "name": "dare-to-connect",
+  "version": "0.1.0",
   "private": true,
-  "homepage": "./",
+  "dependencies": {
+    "@capacitor/android": "^7.4.4",
+    "@capacitor/app": "^7.1.0",
+    "@capacitor/cli": "^7.4.4",
+    "@capacitor/core": "^7.4.4",
+    "@capacitor/haptics": "^7.0.2",
+    "@capacitor/ios": "^7.4.4",
+    "@capacitor/keyboard": "^7.0.3",
+    "@capacitor/status-bar": "^7.0.3",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^13.5.0",
+    "axios": "^1.13.2",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "react-redux": "^9.2.0",
+    "react-router-dom": "^7.10.1",
+    "react-scripts": "5.0.1",
+    "redux": "^5.0.1",
+    "web-vitals": "^2.1.4"
+  },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "cap:add:android": "npx cap add android",
-    "cap:add:ios": "npx cap add ios",
-    "cap:sync": "npx cap sync",
-    "cap:open:android": "npx cap open android",
-    "cap:open:ios": "npx cap open ios",
-    "cap:copy": "npx cap copy",
-    "cap:update": "npx cap update",
-    "lint": "eslint src --ext .js,.jsx"
-  },
-  "dependencies": {
-    "@capacitor/android": "^6.2.0",
-    "@capacitor/app": "^6.0.2",
-    "@capacitor/cli": "^6.2.0",
-    "@capacitor/core": "^6.2.0",
-    "@capacitor/haptics": "^6.0.2",
-    "@capacitor/ios": "^6.2.0",
-    "@capacitor/keyboard": "^6.0.3",
-    "@capacitor/status-bar": "^6.0.2",
-    "axios": "^1.7.9",
-    "ionicons": "^7.5.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0",
-    "rxjs": "^7.8.0"
-  },
-  "devDependencies": {
-    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
-    "eslint": "^8.57.0",
-    "eslint-config-react-app": "^7.0.1",
-    "eslint-plugin-import": "^2.29.1",
-    "eslint-plugin-jsdoc": "^48.2.1",
-    "eslint-plugin-prefer-arrow": "^1.2.2",
-    "eslint-plugin-react": "^7.35.0",
-    "eslint-plugin-react-hooks": "^4.6.2",
-    "react-scripts": "^5.0.1"
+    "eject": "react-scripts eject"
   },
   "eslintConfig": {
     "extends": [
@@ -61,6 +47,5 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  },
-  "description": "A React + Capacitor project"
+  }
 }

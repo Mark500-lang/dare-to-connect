@@ -1,0 +1,49 @@
+.splash-container{
+    width: 100%;
+    min-height: 100vh;
+    background-color: #1674a2;
+    /* background-image: url("../assets/Christmas Backkground.png");
+    background-repeat: no-repeat;
+    background-position: top center;
+    background-size: cover; */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.splash-logo{
+    color: white;
+    width: 250px;
+    height: 250px;
+    margin: auto;
+}
+.splash-content{
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+.splash-button{
+    background-color: #fff;
+    color: #1674a2;
+    border: none;
+    border-radius: 30px;
+    padding: 12px 24px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    margin: 0 auto 60px;
+    text-align: center;
+}
+
+.promo-link{
+    
+    text-align: center;
+    text-decoration: none;
+    color: #fff;
+    padding: 16px 0;
+    margin: 0;
+    z-index: 1000;
+    background: transparent;
+}
