@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate, Outlet } from 'react-router-dom';
 import './MainPage.css';
 import SideBar from './common/SideBar';
-import profileImage from '../assets/Vector Icons/Job interview Icon.png';
+import profileImage from '../assets/User Icon.png';
+import { RiMenu2Line } from "react-icons/ri";
 
 const MainPage = () => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -61,7 +62,7 @@ const MainPage = () => {
                     onClick={toggleSidebar}
                     aria-label={sidebarOpen ? "Close menu" : "Open menu"}
                 >
-                    <span className="toggle-icon">☰</span>
+                    <span className="toggle-icon"><RiMenu2Line/></span>
                 </button>
                 
                 {/* Child route content */}

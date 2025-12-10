@@ -2,19 +2,22 @@ import React, { useState, useEffect } from 'react';
 import './SideBar.css';
 import { useLocation } from 'react-router-dom';
 import packageJson from '../../../package.json';
+import { IoHomeOutline, IoGameControllerOutline, IoList, IoMailOutline, IoShareSocial, IoPower } from "react-icons/io5";
+import { FaRegUser } from "react-icons/fa6";
+import UserIcon from '../../assets/User Icon.png';
 
 const SideBar = ({ onItemClick, isOpen = true, profileImage, onClose }) => {
     const [activeItem, setActiveItem] = useState('home');
     const location = useLocation();
 
     const items = [
-        { id: 'home', label: 'Home', icon: '🏠' },
-        { id: 'games', label: 'Games', icon: '🎮' },
-        { id: 'subscription', label: 'My Subscription', icon: '💳' },
-        { id: 'account', label: 'My Account', icon: '👤' },
-        { id: 'help', label: 'Need Help', icon: '❓' },
-        { id: 'referral', label: 'Tell a Friend', icon: '👥' },
-        { id: 'logout', label: 'Logout', icon: '🚪' },
+        { id: 'home', label: 'Home', icon: <IoHomeOutline /> },
+        { id: 'games', label: 'Games', icon: <IoGameControllerOutline /> },
+        { id: 'subscription', label: 'My Subscription', icon: <IoList /> },
+        { id: 'account', label: 'My Account', icon: <FaRegUser /> },
+        { id: 'help', label: 'Need Help', icon: <IoMailOutline /> },
+        { id: 'referral', label: 'Tell a Friend', icon: <IoShareSocial /> },
+        { id: 'logout', label: 'Logout', icon: <IoPower /> },
     ];
 
     // Update active item based on current route
@@ -58,7 +61,7 @@ const SideBar = ({ onItemClick, isOpen = true, profileImage, onClose }) => {
                 
                 <div className="sidebar-header">
                     {profileImage && <img src={profileImage} alt="Profile" className="profile-image" />}
-                    <span className="version-text">v{packageJson.version}</span>
+                    <span className="version-text">Version: {packageJson.version}</span>
                 </div>
                 
                 <nav className="sidebar-nav">
