@@ -61,7 +61,7 @@
     height: 60px;
     border-radius: 50%;
     object-fit: cover;
-    box-shadow: 0 0 15px rgba(76, 175, 80, 0.3);
+    box-shadow: 0 0 10px rgba(6, 180, 248, 0.3);
 }
 
 .version-text {

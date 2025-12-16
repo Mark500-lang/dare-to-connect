@@ -1,74 +1,61 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { getGameById } from '../data/gamesData';
 import './GameDetails.css';
+import { IoIosArrowBack } from "react-icons/io";
 
 const GameDetails = () => {
     const { gameId } = useParams();
     const navigate = useNavigate();
-
-    const game = {
-        id: gameId,
-        title: 'Chiling',
-        description: 'A relaxing game to help you unwind and connect with yourself.',
-        instructions: 'Follow the prompts to engage in mindfulness activities.',
-        duration: '20 minutes',
-        players: '1-4 players',
-        category: 'Free Trial',
-        difficulty: 'Easy',
-        rating: '4.8'
-    };
+    const game = getGameById(gameId);
 
     const handleBack = () => {
-        navigate(-1); // Go back to previous page
+        navigate('/main/library');
+    };
+
+    const handleStartNew = () => {
+        navigate(`/card/${game.id}`);
+    };
+
+    const handleContinue = () => {
+        navigate(`/card/${game.id}`);
     };
 
     return (
         <div className="standalone-page game-details-page">
-            {/* Back button instead of sidebar toggle */}
-            <button 
-                className="back-button"
-                onClick={handleBack}
-                aria-label="Go back"
-            >
-                ← Back
-            </button>
+            <div className="game-details-header">
+                <IoIosArrowBack className="back-button" onClick={handleBack} aria-label="Go back" size={24} color="#000000ff" />
+                <h1 className='game-details-title'>{game.title}</h1>
+            </div>
             
             <div className="game-details-content">
-                <div className="game-header">
-                    <h1>{game.title}</h1>
-                    <div className="game-meta">
-                        <span className="game-category">{game.category}</span>
-                        <span className="game-duration">⏱️ {game.duration}</span>
-                        <span className="game-players">👥 {game.players}</span>
-                        <span className="game-rating">⭐ {game.rating}</span>
-                    </div>
+                
+                <div className="game-image-container">
+                    <img 
+                        src={game.cardImage} 
+                        alt={game.title} 
+                        className="game-main-image"
+                    />
                 </div>
                 
-                <div className="game-description-section">
-                    <h2>About This Game</h2>
-                    <p>{game.description}</p>
-                </div>
-                
-                <div className="game-instructions-section">
-                    <h2>How to Play</h2>
-                    <p>{game.instructions}</p>
-                    <ul className="instructions-list">
-                        <li>Find a quiet, comfortable space</li>
-                        <li>Follow the audio prompts</li>
-                        <li>Take deep breaths when prompted</li>
-                        <li>Share your experience (optional)</li>
-                    </ul>
-                </div>
-                
-                <div className="action-section">
+                <div className="game-action-buttons">
                     <button 
-                        className="primary-action-btn"
-                        onClick={() => navigate(`/card/${gameId}`)}
+                        className="start-continue-btn"
+                        onClick={handleStartNew}
+                        style={{ 
+                            backgroundColor: game.color,
+                        }}
                     >
-                        🎮 Start Playing Now
+                        Start
                     </button>
-                    <button className="secondary-action-btn">
-                        👥 Invite Friends
+                    <button 
+                        className="start-continue-btn"
+                        onClick={handleContinue}    
+                        style={{ 
+                            backgroundColor: game.color,
+                        }}
+                    >
+                        Continue
                     </button>
                 </div>
             </div>

@@ -4,7 +4,6 @@ import { useLocation } from 'react-router-dom';
 import packageJson from '../../../package.json';
 import { IoHomeOutline, IoGameControllerOutline, IoList, IoMailOutline, IoShareSocial, IoPower } from "react-icons/io5";
 import { FaRegUser } from "react-icons/fa6";
-import UserIcon from '../../assets/User Icon.png';
 
 const SideBar = ({ onItemClick, isOpen = true, profileImage, onClose }) => {
     const [activeItem, setActiveItem] = useState('home');
