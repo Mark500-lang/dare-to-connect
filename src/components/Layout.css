@@ -1,0 +1,92 @@
+/* Layout.css */
+.app-layout {
+    display: flex;
+    min-height: 100vh;
+    background: #cecece;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    position: relative;
+    overflow-x: hidden;
+}
+
+/* Sidebar Overlay */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 998;
+    display: none;
+    backdrop-filter: blur(2px);
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Main Content Area */
+.main-content {
+    flex: 1;
+    position: relative;
+    min-height: 100vh;
+    transition: transform 0.3s ease;
+    background: #ffffff;
+    overflow-y: auto;
+}
+/* Mobile swipe edge detection area */
+.main-content::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 20px;
+    height: 100%;
+    z-index: 1;
+    background: linear-gradient(90deg, rgba(22, 116, 162, 0.1), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .sidebar-overlay {
+        display: block;
+    }
+    
+    .main-content::before {
+        opacity: 0.3;
+    }
+    
+    .sidebar-open .main-content::before {
+        opacity: 0;
+    }
+}
+
+/* Desktop */
+@media (min-width: 769px) {
+    .app-layout {
+        padding-left: 280px; /* Space for sidebar */
+    }
+    
+    /* Desktop hover effect */
+    .app-layout:hover .main-content {
+        transform: translateX(280px);
+    }
+    
+    .app-layout:hover .SideBar-container.closed ~ .main-content {
+        transform: translateX(0);
+    }
+}
+
+/* Hide toggle button on splash and auth pages */
+.main-content:has(.splash-page) .global-sidebar-toggle,
+.main-content:has(.auth-page) .global-sidebar-toggle {
+    display: none;
+}

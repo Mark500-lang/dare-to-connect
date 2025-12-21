@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './SideBar.css';
 import { useLocation } from 'react-router-dom';
 import packageJson from '../../../package.json';
 import { IoHomeOutline, IoGameControllerOutline, IoList, IoMailOutline, IoShareSocial, IoPower } from "react-icons/io5";
 import { FaRegUser } from "react-icons/fa6";
 
-const SideBar = ({ onItemClick, isOpen = true, profileImage, onClose }) => {
+const SideBar = ({ onItemClick, isOpen = true, profileImage, onClose, enableGestures = true }) => {
     const [activeItem, setActiveItem] = useState('home');
     const location = useLocation();
 
@@ -23,15 +23,15 @@ const SideBar = ({ onItemClick, isOpen = true, profileImage, onClose }) => {
     useEffect(() => {
         const path = location.pathname;
         
-        if (path.includes('/main/library')) {
+        if (path.includes('/library')) {
             setActiveItem('games');
-        } else if (path.includes('/main/subscription')) {
+        } else if (path.includes('/subscription')) {
             setActiveItem('subscription');
-        } else if (path.includes('/main/account')) {
+        } else if (path.includes('/account')) {
             setActiveItem('account');
-        } else if (path.includes('/main/help')) {
+        } else if (path.includes('/help')) {
             setActiveItem('help');
-        } else if (path.includes('/main/referral')) {
+        } else if (path.includes('/referral')) {
             setActiveItem('referral');
         }
     }, [location.pathname]);
@@ -47,37 +47,35 @@ const SideBar = ({ onItemClick, isOpen = true, profileImage, onClose }) => {
     };
 
     return (
-        <>
-            <div className={`SideBar-container ${isOpen ? 'open' : 'closed'}`}>
-                {/* Close button for mobile */}
-                <button 
-                    className="sidebar-close-btn"
-                    onClick={handleCloseClick}
-                    aria-label="Close menu"
-                >
-                    ✕
-                </button>
-                
-                <div className="sidebar-header">
-                    {profileImage && <img src={profileImage} alt="Profile" className="profile-image" />}
-                    <span className="version-text">Version: {packageJson.version}</span>
-                </div>
-                
-                <nav className="sidebar-nav">
-                    {items.map((item) => (
-                        <button
-                            key={item.id}
-                            className={`sidebar-item ${activeItem === item.id ? 'active' : ''}`}
-                            onClick={() => handleItemClick(item)}
-                            aria-label={item.label}
-                        >
-                            {item.icon && <span className="sidebar-icon">{item.icon}</span>}
-                            <span className="sidebar-label">{item.label}</span>
-                        </button>
-                    ))}
-                </nav>
+        <div className={`SideBar-container ${isOpen ? 'open' : 'closed'}`}>
+            {/* Close button for mobile */}
+            <button 
+                className="sidebar-close-btn"
+                onClick={handleCloseClick}
+                aria-label="Close menu"
+            >
+                ✕
+            </button>
+            
+            <div className="sidebar-header">
+                {profileImage && <img src={profileImage} alt="Profile" className="profile-image" />}
+                <span className="version-text">Version: {packageJson.version}</span>
             </div>
-        </>
+            
+            <nav className="sidebar-nav">
+                {items.map((item) => (
+                    <button
+                        key={item.id}
+                        className={`sidebar-item ${activeItem === item.id ? 'active' : ''}`}
+                        onClick={() => handleItemClick(item)}
+                        aria-label={item.label}
+                    >
+                        {item.icon && <span className="sidebar-icon">{item.icon}</span>}
+                        <span className="sidebar-label">{item.label}</span>
+                    </button>
+                ))}
+            </nav>
+        </div>
     );
 };
 

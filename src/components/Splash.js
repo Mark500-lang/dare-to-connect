@@ -6,7 +6,7 @@ const Splash = () => {
     const navigate = useNavigate();  
 
     const handleContinue = async () => {
-        navigate("/main/library");
+        navigate("/library");
     };
     return (
         <div className="splash-container">

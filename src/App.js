@@ -1,11 +1,12 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import NetworkStatusMonitor from './components/NetworkStatusMonitor';
 import './App.css';
-
+import Layout from './components/Layout';
 import Splash from './components/Splash';
 import GameDetails from './components/GameDetails';
 import GameLibrary from './components/GameLibrary';
 import GameCard from './components/GameCard';
-import MainPage from './components/MainPage';
 
 /* AUTH SCREENS */
 import Login from './components/auth/Login';
@@ -14,36 +15,39 @@ import ResetPassword from './components/auth/ResetPassword';
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        {/* Splash */}
-        <Route path="/" element={<Splash />} />
-
-        {/* AUTH ROUTES (NO SIDEBAR) */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-
-        {/* ROUTES WITH SIDEBAR */}
-        <Route path="/main/*" element={<MainPage />}>
-          <Route path="library" element={<GameLibrary />} />
-          <Route path="subscription" element={<div>My Subscription Page</div>} />
-          <Route path="account" element={<Login />} />
-          <Route path="help" element={<div>Need Help Page</div>} />
-          <Route path="referral" element={<div>Tell a Friend Page</div>} />
-
-          {/* Default sidebar page */}
-          <Route index element={<Navigate to="library" replace />} />
-        </Route>
-
-        {/* GAME PAGES (NO SIDEBAR) */}
-        <Route path="/games/:gameId" element={<GameDetails />} />
-        <Route path="/card/:gameId" element={<GameCard />} />
-
-        {/* FALLBACK */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router>
+        {/* Network status monitor for all pages */}
+        <NetworkStatusMonitor />
+        
+        {/* Layout wraps EVERYTHING - sidebar available on all pages */}
+        <Routes>
+          <Route index element={<Splash />} />
+          <Route path="/" element={<Layout />}>
+            {/* All routes are children of Layout */}
+            
+            {/* AUTH ROUTES */}
+            <Route path="login" element={<Login />} />
+            <Route path="register" element={<Register />} />
+            <Route path="reset-password" element={<ResetPassword />} />
+            
+            {/* MAIN APP ROUTES */}
+            <Route path="library" element={<GameLibrary />} />
+            <Route path="subscription" element={<div>My Subscription Page</div>} />
+            <Route path="account" element={<div>My Account Page</div>} />
+            <Route path="help" element={<div>Need Help Page</div>} />
+            <Route path="referral" element={<div>Tell a Friend Page</div>} />
+            
+            {/* GAME PAGES */}
+            <Route path="games/:gameId" element={<GameDetails />} />
+            <Route path="card/:gameId" element={<GameCard />} />
+            
+            {/* FALLBACK */}
+            <Route path="*" element={<Splash />} />
+          </Route>
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 

@@ -31,7 +31,9 @@
     margin-top: 20px;
     cursor: pointer;
 }
-
+.geo-select-input{
+    color: #000000 !important;
+}
 /* BUTTONS */
 .primary-btn {
     width: 100%;
