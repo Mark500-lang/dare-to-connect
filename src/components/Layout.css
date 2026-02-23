@@ -70,20 +70,7 @@
 }
 
 /* Desktop */
-@media (min-width: 769px) {
-    .app-layout {
-        padding-left: 280px; /* Space for sidebar */
-    }
-    
-    /* Desktop hover effect */
-    .app-layout:hover .main-content {
-        transform: translateX(280px);
-    }
-    
-    .app-layout:hover .SideBar-container.closed ~ .main-content {
-        transform: translateX(0);
-    }
-}
+
 
 /* Hide toggle button on splash and auth pages */
 .main-content:has(.splash-page) .global-sidebar-toggle,

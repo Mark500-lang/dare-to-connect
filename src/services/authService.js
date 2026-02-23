@@ -25,7 +25,6 @@ class AuthService {
             const requestData = buildRequestBody({
                 email,
                 password
-                // Note: accessToken is NOT included here - it's returned by the server
             });
 
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.LOGIN}`, {
@@ -34,49 +33,56 @@ class AuthService {
                 body: JSON.stringify(requestData)
             });
 
-            const result = await handleApiResponse(response);
-            console.log('Login successful, result:', result);
+            // Pass endpoint name for intelligent response handling
+            const result = await handleApiResponse(response, 'login');
+            console.log('Login processed result:', result);
             
-            // IMPORTANT: Your backend returns accessToken as a string in the message field
-            // Check if we have a proper accessToken in the result
+            // Now result contains everything we need:
+            // - User data in result properties (firstName, lastName, etc.)
+            // - Access token in result._accessToken (if login endpoint)
+            // - Full response in result._fullResponse (for debugging)
+            
             let accessToken = null;
+            let userData = null;
             
-            if (result && typeof result === 'string') {
-                // If result is a string, it's the accessToken
-                accessToken = result;
-            } else if (result && result.message && typeof result.message === 'string') {
-                // If result has a message field containing the token
-                accessToken = result.message;
-            } else if (result && result.accessToken) {
-                // If result has an accessToken field
+            // Extract access token
+            if (result._accessToken) {
+                accessToken = result._accessToken;
+            } else if (result.accessToken) {
                 accessToken = result.accessToken;
+            } else if (result.token) {
+                accessToken = result.token;
             }
             
             if (!accessToken) {
                 throw new Error('No access token received from server');
             }
             
+            // Extract user data (remove helper fields)
+            const { _accessToken, _fullResponse, ...cleanUserData } = result;
+            userData = Object.keys(cleanUserData).length > 0 ? cleanUserData : null;
+            
             // Save token
             this.accessToken = accessToken;
             localStorage.setItem('accessToken', accessToken);
             
-            // Try to get user profile
-            let userData = null;
-            try {
-                userData = await this.getProfile();
-            } catch (profileError) {
-                console.warn('Could not fetch profile immediately:', profileError);
-                // If we have user data in result, use it
-                if (result && result.id) {
-                    userData = result;
+            // If user data is minimal, fetch full profile
+            if (!userData || !userData.id) {
+                try {
+                    const fullProfile = await this.getProfile();
+                    userData = { ...userData, ...fullProfile };
+                } catch (profileError) {
+                    console.warn('Could not fetch full profile:', profileError);
+                    // Use what we have
+                    if (email && !userData.email) {
+                        userData = { ...userData, email };
+                    }
                 }
             }
             
             // Save user data
             this.user = userData;
-            if (userData) {
-                localStorage.setItem('user', JSON.stringify(userData));
-            }
+            localStorage.setItem('user', JSON.stringify(userData));
             
             return {
                 accessToken,
@@ -86,7 +92,7 @@ class AuthService {
         } catch (error) {
             console.error('Login service error:', error);
             
-            // Provide specific error messages
+            // Provide user-friendly error messages
             if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
                 throw new Error('Network error. Please check your internet connection.');
             } else if (error.message.includes('Server error')) {
@@ -100,6 +106,51 @@ class AuthService {
             } else {
                 throw error;
             }
+        }
+    }
+
+    async getProfile() {
+        if (!this.accessToken) {
+            return null;
+        }
+
+        try {
+            const requestData = buildRequestBody({
+                accessToken: this.accessToken
+            });
+
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.GET_PROFILE}`, {
+                method: 'POST',
+                headers: API_CONFIG.HEADERS,
+                body: JSON.stringify(requestData)
+            });
+
+            // Pass endpoint name
+            const userData = await handleApiResponse(response, 'getProfile');
+            
+            // Clean up any helper fields
+            const { _accessToken, _fullResponse, ...cleanUserData } = userData || {};
+            
+            // Check if profile has photo field, if not add default
+            const finalUserData = cleanUserData || {};
+            if (finalUserData && !finalUserData.profilePhoto) {
+                finalUserData.profilePhoto = '/default-profile.png';
+            }
+            
+            // Save updated user data
+            this.user = finalUserData;
+            localStorage.setItem('user', JSON.stringify(finalUserData));
+            
+            return finalUserData;
+        } catch (error) {
+            console.error('Get profile error:', error);
+            
+            // If token is invalid, logout
+            if (error.message.includes('401') || error.message.includes('Session expired')) {
+                this.logout();
+            }
+            
+            throw error;
         }
     }
 
@@ -135,7 +186,7 @@ class AuthService {
         }
     }
 
-    async getProfile() {
+    async getFullProfile() {
         if (!this.accessToken) {
             return null;
         }
@@ -153,28 +204,69 @@ class AuthService {
 
             const userData = await handleApiResponse(response);
             
-            // Save user data
+            // Check if profile has photo field, if not add default
+            if (userData && !userData.profilePhoto) {
+                userData.profilePhoto = '/default-profile.png'; // Default image path
+            }
+            
+            // Save updated user data
             this.user = userData;
             localStorage.setItem('user', JSON.stringify(userData));
             
             return userData;
         } catch (error) {
-            console.error('Get profile error:', error);
-            
-            // If token is invalid, logout
-            if (error.message.includes('401') || error.message.includes('Session expired')) {
-                this.logout();
-            }
-            
+            console.error('Get full profile error:', error);
             throw error;
         }
     }
 
-    async forgotPassword(email) {
-        try {
-            const requestData = buildRequestBody({ email });
+    // Add this method to update profile
+    async updateProfile(profileData) {
+        if (!this.accessToken) {
+            throw new Error('Not authenticated');
+        }
 
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.FORGOT_PASSWORD}`, {
+        try {
+            const requestData = buildRequestBody({
+                accessToken: this.accessToken,
+                ...profileData
+            });
+
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.UPDATE_PROFILE}`, {
+                method: 'POST',
+                headers: API_CONFIG.HEADERS,
+                body: JSON.stringify(requestData)
+            });
+
+            const result = await handleApiResponse(response);
+            
+            // Refresh user data
+            await this.getFullProfile();
+            
+            return {
+                success: true,
+                message: result.message || 'Profile updated successfully'
+            };
+        } catch (error) {
+            console.error('Update profile error:', error);
+            throw error;
+        }
+    }
+
+    // Add this method to change password
+    async changePassword(currentPassword, newPassword) {
+        if (!this.accessToken) {
+            throw new Error('Not authenticated');
+        }
+
+        try {
+            const requestData = buildRequestBody({
+                accessToken: this.accessToken,
+                currentPassword,
+                newPassword
+            });
+
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CHANGE_PASSWORD}`, {
                 method: 'POST',
                 headers: API_CONFIG.HEADERS,
                 body: JSON.stringify(requestData)
@@ -184,10 +276,10 @@ class AuthService {
             
             return {
                 success: true,
-                message: result.message || 'Reset instructions sent to your email.'
+                message: result.message || 'Password changed successfully'
             };
         } catch (error) {
-            console.error('Forgot password error:', error);
+            console.error('Change password error:', error);
             throw error;
         }
     }

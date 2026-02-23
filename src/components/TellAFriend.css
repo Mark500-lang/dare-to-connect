@@ -1,0 +1,110 @@
+.tell-friend-page {
+  min-height: 100vh;
+  background: #f8f9fa;
+  padding-bottom: 30px;
+}
+
+.tell-friend-header {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.tell-friend-header svg {
+  font-size: 20px;
+  color: #1674a2;
+  cursor: pointer;
+  margin-right: 15px;
+}
+
+.tell-friend-header span {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.tell-friend-content {
+  background: white;
+  margin: 20px;
+  padding: 25px;
+  border-radius: 15px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.share-intro {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.share-icon {
+  font-size: 60px;
+  color: #1674a2;
+  margin-bottom: 15px;
+}
+
+.share-title {
+  color: #1674a2;
+  font-weight: 600;
+  margin-bottom: 10px !important;
+}
+
+.share-description {
+  max-width: 600px;
+  margin: 0 auto !important;
+  line-height: 1.6;
+}
+
+.link-container {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 30px;
+  border-left: 4px solid #1674a2;
+}
+
+.link-icon {
+  color: #1674a2;
+  font-size: 20px;
+}
+
+.link-container .MuiTextField-root .MuiInput-root {
+  color: #666;
+  font-size: 14px;
+}
+
+.link-container .MuiIconButton-root {
+  color: #1674a2;
+}
+
+.link-container .MuiIconButton-root.copied {
+  color: #28a745;
+}
+
+.share-options-title {
+  color: #333;
+  font-weight: 600;
+  margin-bottom: 15px !important;
+}
+
+.share-options {
+  margin-bottom: 20px;
+}
+
+.incentive-section {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+  text-align: center;
+}
+
+.incentive-text {
+  color: #1674a2 !important;
+  font-weight: 500;
+  margin-bottom: 5px !important;
+}
+
+.incentive-note {
+  font-style: italic;
+}

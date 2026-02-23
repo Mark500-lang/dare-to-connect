@@ -1,11 +1,7 @@
-/* GameCard.css */
 .game-card-container {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    position: relative;
-    overflow: hidden;
 }
 
 .game-card-header {
@@ -18,8 +14,6 @@
     right: 0;
     z-index: 100;
     background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .back-button {
@@ -29,14 +23,9 @@
     padding: 8px;
     margin-right: 15px;
     border-radius: 50%;
-    transition: background-color 0.3s;
     display: flex;
     align-items: center;
     justify-content: center;
-}
-
-.back-button:hover {
-    background-color: rgba(0, 0, 0, 0.05);
 }
 
 .game-card-title {
@@ -51,18 +40,70 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    padding: 80px 20px 30px;
+}
+
+/* Centered Content Container */
+.centered-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
-    padding: 80px 20px 120px;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    gap: 120px;
+}
+
+/* Card and Navigation Container */
+.card-nav-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    gap: 20px;
+}
+
+.nav-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.nav-button:hover:not(:disabled) {
+    transform: scale(1.1);
+}
+
+.nav-button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* Card Stack Container */
+.card-stack-wrapper {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-width: 0;
     position: relative;
+    z-index: 5;
 }
 
 .card-stack-container {
     position: relative;
     width: 100%;
-    max-width: 320px;
-    height: 400px;
+    max-width: 440px;
+    height: 420px;
     perspective: 1000px;
-    margin: 0 auto 40px;
+    margin: 0;
 }
 
 .stacked-card {
@@ -77,7 +118,7 @@
     transform-style: preserve-3d;
     backface-visibility: hidden;
     transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    padding: 30px 20px;
+    padding: 30px 0px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -90,12 +131,9 @@
 }
 
 .stacked-card:not(.current-card) {
-    filter: brightness(0.9);
+    filter: brightness(0.85);
     pointer-events: none;
-}
-
-.stacked-card:not(.current-card):hover {
-    transform: none !important;
+    opacity: 1;
 }
 
 .card-content {
@@ -113,11 +151,12 @@
 
 .card-text {
     color: white;
-    font-size: 22px;
+    font-size: 24px;
     line-height: 1.4;
     font-weight: 500;
-    margin: 0 0 20px 0;
+    margin: 0;
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+    padding: 0 20px;
 }
 
 .card-progress {
@@ -128,17 +167,6 @@
     display: flex;
     justify-content: center;
     align-items: center;
-}
-
-.card-counter {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
-    padding: 6px 16px;
-    border-radius: 20px;
-    font-size: 14px;
-    font-weight: 600;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .card-shadow {
@@ -153,72 +181,42 @@
     z-index: 1;
 }
 
-/* Card animation for slide out */
-.card-slide-out .current-card {
+/* Card Animations */
+.card-slide-out-right {
     animation: slideOutRight 0.3s ease forwards;
+}
+
+.card-slide-out-left {
+    animation: slideOutLeft 0.3s ease forwards;
 }
 
 @keyframes slideOutRight {
     0% {
-        transform: translateX(0) rotate(0deg);
+        transform: translateX(0) rotate(0deg) translateY(0);
         opacity: 1;
     }
     100% {
-        transform: translateX(100px) rotate(5deg);
+        transform: translateX(100px) rotate(5deg) translateY(0);
         opacity: 0;
     }
 }
 
-.card-navigation {
+@keyframes slideOutLeft {
+    0% {
+        transform: translateX(0) rotate(0deg) translateY(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translateX(-100px) rotate(-5deg) translateY(0);
+        opacity: 0;
+    }
+}
+
+/* Shuffle Button Container */
+.shuffle-container {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    justify-content: center;
     width: 100%;
-    max-width: 320px;
-    margin: 0 auto 30px;
-    gap: 40px;
-}
-
-.nav-button {
-    background: white;
-    border: none;
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-    transition: all 0.3s ease;
-    padding: 0;
-}
-
-.nav-button:hover:not(:disabled) {
-    transform: scale(1.1);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-}
-
-.nav-button:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-}
-
-.nav-button:active:not(:disabled) {
-    transform: scale(0.95);
-}
-
-.game-controls {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 20px;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
-    display: flex;
-    justify-content: center;
 }
 
 .control-btn {
@@ -229,9 +227,6 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
     min-width: 200px;
 }
@@ -241,19 +236,82 @@
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
 }
 
-.control-btn:active {
-    transform: translateY(0);
+/* Footer */
+.promo-footer {
+    width: 100%;
+    text-align: center;
+    padding: 20px;
 }
 
-.shuffle-btn {
-    letter-spacing: 1px;
+.site-link {
+    color: #333;
+    text-decoration: none;
+    font-size: 16px;
+    padding: 10px 20px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    display: inline-block;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
+/* Card Animations */
+.card-slide-out-right {
+    animation: slideOutRight 0.3s ease forwards;
+}
+
+.card-slide-out-left {
+    animation: slideOutLeft 0.3s ease forwards;
+}
+
+@keyframes slideOutRight {
+    0% { transform: translateX(0) rotate(0deg) translateY(0); opacity: 1; }
+    100% { transform: translateX(100px) rotate(5deg) translateY(0); opacity: 0; }
+}
+
+@keyframes slideOutLeft {
+    0% { transform: translateX(0) rotate(0deg) translateY(0); opacity: 1; }
+    100% { transform: translateX(-100px) rotate(-5deg) translateY(0); opacity: 0; }
+}
+
+/* Responsive Design - Single Media Query Layer */
+@media (max-width: 1024px) {
+    /* Tablet */
+    .centered-content {
+        gap: 150px;
+    }
+    
+    .card-nav-container {
+        gap: 15px;
+    }
+    
     .card-stack-container {
-        height: 350px;
-        max-width: 280px;
+        max-width: 380px;
+        height: 380px;
+    }
+    
+    .card-text {
+        font-size: 22px;
+    }
+    
+    .nav-button {
+        width: 60px;
+        height: 60px;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Mobile */
+    .centered-content {
+        gap: 130px;
+        padding: 0 10px;
+    }
+    
+    .card-nav-container {
+        gap: 10px;
+    }
+    
+    .card-stack-container {
+        max-width: 300px;
+        height: 340px;
     }
     
     .card-text {
@@ -273,22 +331,29 @@
 }
 
 @media (max-width: 480px) {
+    /* Small Mobile */
+    .centered-content {
+        gap: 110px;
+        padding: 0;
+    }
+    
     .card-stack-container {
+        max-width: 250px;
         height: 300px;
-        max-width: 240px;
     }
     
     .card-text {
         font-size: 18px;
+        padding: 0 20px;
     }
     
-    .card-navigation {
-        gap: 20px;
+    .stacked-card {
+        padding: 20px 0px;
     }
     
     .nav-button {
-        width: 45px;
-        height: 45px;
+        width: 40px;
+        height: 40px;
     }
     
     .game-card-header {
@@ -297,5 +362,27 @@
     
     .game-card-title {
         font-size: 18px;
+    }
+    
+    .site-link {
+        font-size: 14px;
+        padding: 8px 16px;
+    }
+}
+
+/* Desktop Enhancements */
+@media (min-width: 1025px) {
+    .card-stack-container {
+        max-width: 380px;
+        height: 450px;
+    }
+    
+    .card-text {
+        font-size: 26px;
+    }
+    
+    .nav-button {
+        width: 70px;
+        height: 70px;
     }
 }

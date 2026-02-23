@@ -65,7 +65,7 @@
     align-items: center;
 }
 
-.profile-image {
+.sidebar-user-icon {
     width: 80px;
     height: 80px;
     border-radius: 50%;
@@ -145,7 +145,7 @@
     }
     
     .sidebar-close-btn {
-        display: none;
+        display: flex;
     }
     
     /* Desktop hover effect for sidebar */
@@ -167,7 +167,7 @@
     }
     
     .sidebar-close-btn {
-        display: flex;
+        display: none;
     }
     
     .sidebar-header {

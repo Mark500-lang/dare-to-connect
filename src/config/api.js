@@ -37,18 +37,28 @@ export const buildRequestBody = (data) => ({
 });
 
 // Enhanced response handler
-export const handleApiResponse = async (response) => {
-    console.log('API Response Status:', response.status, response.statusText, response);
+export const handleApiResponse = async (response, endpoint = '') => {
+    console.log(`API Response [${endpoint}]:`, response.status, response.statusText);
     
     if (!response.ok) {
         // Try to get error details
         let errorMessage = `HTTP Error: ${response.status}`;
+        let errorData = null;
+        
         try {
-            const errorData = await response.json();
-            console.error('API Error Details:', errorData);
-            errorMessage = errorData.message || errorMessage;
+            const responseText = await response.text();
+            console.error(`API Error [${endpoint}]:`, responseText);
+            
+            if (responseText) {
+                try {
+                    errorData = JSON.parse(responseText);
+                    errorMessage = errorData.message || errorData.error || errorMessage;
+                } catch (e) {
+                    errorMessage = responseText;
+                }
+            }
         } catch (e) {
-            console.error('Could not parse error response:', e);
+            console.error(`Could not parse error response [${endpoint}]:`, e);
         }
         
         // Provide user-friendly messages
@@ -72,15 +82,92 @@ export const handleApiResponse = async (response) => {
         }
     }
     
-    const data = await response.json();
-    console.log('API Response Data:', data);
+    // Get response text first to avoid JSON parsing issues
+    const responseText = await response.text();
     
-    // Check for success status
-    if (data.status !== 'Ok' && data.status !== 'ok') {
-        throw new Error(data.message || 'Request failed');
+    if (!responseText) {
+        console.warn(`Empty response body from [${endpoint}]`);
+        return null;
     }
     
-    return data.result !== null ? data.result : data;
+    let data;
+    try {
+        data = JSON.parse(responseText);
+        console.log(`API Success [${endpoint}]:`, data);
+    } catch (e) {
+        console.error(`Failed to parse JSON from [${endpoint}]:`, e, responseText);
+        throw new Error('Invalid response format from server');
+    }
+    
+    // Check for success status (case insensitive)
+    const status = data.status || data.Status || '';
+    const normalizedStatus = status.toString().toLowerCase();
+    
+    if (normalizedStatus !== 'ok' && normalizedStatus !== 'success') {
+        throw new Error(data.message || data.Message || 'Request failed');
+    }
+    
+    // Universal response handler - handles all API structures
+    return processApiResponse(data, endpoint);
+};
+
+// Helper function to process different API response structures
+const processApiResponse = (data, endpoint) => {
+    // Special handling for login endpoint
+    if (endpoint.includes('login')) {
+        return {
+            ...(data.result || {}),
+            _accessToken: data.message, // Include access token
+            _fullResponse: data // Keep full response for debugging
+        };
+    }
+    
+    // For GET_QUESTIONS and other array responses
+    if (data.result !== undefined && data.result !== null) {
+        // If result is an array (questions, games, etc.)
+        if (Array.isArray(data.result)) {
+            // Return the array directly - NO helper fields on array items
+            return data.result;
+        }
+        
+        // If result is an object
+        if (typeof data.result === 'object') {
+            return {
+                ...data.result,
+                _fullResponse: data // Only add to objects, not arrays
+            };
+        }
+        
+        // Primitive value
+        return data.result;
+    }
+    
+    // If data has a data field
+    if (data.data !== undefined && data.data !== null) {
+        // Handle arrays in data field
+        if (Array.isArray(data.data)) {
+            return data.data;
+        }
+        return data.data;
+    }
+    
+    // If data itself is an array (direct array response)
+    if (Array.isArray(data)) {
+        return data;
+    }
+    
+    // For object responses
+    if (typeof data === 'object' && data !== null) {
+        // Remove status/message fields if they exist
+        const { status, message, Status, Message, code, messages, ...cleanData } = data;
+        
+        if (Object.keys(cleanData).length > 0) {
+            return cleanData;
+        }
+    }
+    
+    // Return the entire data object as last resort
+    return data;
 };
 
 // Simple cache service

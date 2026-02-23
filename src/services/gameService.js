@@ -42,15 +42,32 @@ class GameService {
                 body: JSON.stringify(requestData)
             });
 
-            const result = await handleApiResponse(response);
-            console.log('Games API result:', result);
+            // Pass endpoint name
+            const result = await handleApiResponse(response, 'getGames');
+            console.log('Games API processed result:', result);
             
-            // Extract games and subscription from result
-            const gamesList = result.games || result || [];
-            const subscriptionInfo = result.subscription || null;
+            // Handle different response structures
+            let gamesList = [];
+            let subscriptionInfo = null;
+            
+            if (result && typeof result === 'object') {
+                // Structure 1: result has games and subscription fields
+                if (result.games !== undefined) {
+                    gamesList = Array.isArray(result.games) ? result.games : [];
+                    subscriptionInfo = result.subscription || null;
+                } 
+                // Structure 2: result is the games array directly
+                else if (Array.isArray(result)) {
+                    gamesList = result;
+                }
+                // Structure 3: result has data field
+                else if (result.data && Array.isArray(result.data)) {
+                    gamesList = result.data;
+                }
+            }
             
             // Update cache
-            this.cache.games = Array.isArray(gamesList) ? gamesList : [];
+            this.cache.games = gamesList;
             this.cache.lastFetch = Date.now();
             
             // Save to localStorage
@@ -92,9 +109,38 @@ class GameService {
                 body: JSON.stringify(requestData)
             });
 
-            return await handleApiResponse(response);
+            // Pass endpoint name for proper handling
+            const questions = await handleApiResponse(response, 'getQuestions');
+            console.log('Fetched questions:', questions);
+            
+            // Ensure we always return an array
+            if (!questions) {
+                console.warn('No questions returned for game', gameId);
+                return [];
+            }
+            
+            if (Array.isArray(questions)) {
+                return questions;
+            }
+            
+            // If questions is an object with array property, extract it
+            if (questions.questions && Array.isArray(questions.questions)) {
+                return questions.questions;
+            }
+            
+            // Last resort: wrap in array
+            return [questions];
         } catch (error) {
             console.error('Error fetching game questions:', error);
+            
+            // Check for cached questions
+            const cacheKey = `questions_${gameId}`;
+            const cached = cacheService.getItem(cacheKey);
+            if (cached) {
+                console.log('Using cached questions after fetch error');
+                return cached;
+            }
+            
             throw error;
         }
     }

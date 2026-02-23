@@ -1,11 +1,9 @@
 /* Add these to your existing GameDetails.css */
-
 .standalone-page {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     position: relative;
-    background: #f8f9fa;
 }
 
 .game-details-header {
@@ -16,7 +14,6 @@
     position: sticky;
     top: 0;
     z-index: 100;
-    border-bottom: 1px solid #e0e0e0;
 }
 
 .back-button {
@@ -65,8 +62,8 @@
 
 .game-image-container {
     width: 100%;
-    max-width: 300px;
-    height: 300px;
+    max-width: 400px;
+    height: 400px;
     border-radius: 20px;
     overflow: hidden;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
@@ -97,33 +94,6 @@
     font-weight: bold;
     text-align: center;
     padding: 20px;
-}
-
-.game-lock-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    border-radius: 20px;
-}
-
-.lock-icon {
-    font-size: 48px !important;
-    margin-bottom: 15px;
-}
-
-.game-lock-overlay p {
-    margin: 0;
-    font-size: 16px;
-    text-align: center;
-    padding: 0 20px;
 }
 
 .game-action-buttons {
@@ -164,90 +134,36 @@
     opacity: 0.7;
 }
 
-.start-continue-btn.locked {
-    background-color: #cccccc !important;
-    color: #666666;
-}
-
 .start-continue-btn.disabled {
     background-color: #e0e0e0 !important;
     color: #999999;
 }
-
-.btn-icon {
-    font-size: 20px !important;
-}
-
-/* Lock Dialog Styles */
-.lock-dialog .MuiDialog-paper {
-    border-radius: 20px;
-    padding: 10px;
-}
-
-.lock-dialog-title {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    font-weight: 600;
-    color: #333;
-}
-
-.dialog-icon {
-    color: #ff6b6b;
-    font-size: 24px !important;
-}
-
-.dialog-message {
+.game-details-footer{
+    display: block;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    padding: 0 0 20px;
     text-align: center;
-    margin: 10px 0;
-    color: #666;
-    line-height: 1.5;
 }
-
-.dialog-actions {
-    padding: 20px;
-    display: flex;
-    gap: 15px;
-    justify-content: center;
+.footer-promo-link{
+    text-align: center;
+    text-decoration: none;
+    color: #000000;
+    font-size: 14px;
+    transition: color 0.3s;
 }
-
-.dialog-btn {
-    padding: 10px 24px;
-    border-radius: 10px;
-    font-weight: 600;
-    text-transform: none;
-    transition: all 0.3s ease;
-}
-
-.cancel-btn {
-    background-color: #f5f5f5;
-    color: #666;
-}
-
-.cancel-btn:hover {
-    background-color: #e0e0e0;
-}
-
-.subscribe-btn {
-    color: white;
-    background-color: #ff6b6b;
-}
-
-.subscribe-btn:hover {
-    opacity: 0.9;
-}
-
 /* Responsive Design */
 @media (max-width: 768px) {
     .game-image-container {
-        max-width: 280px;
-        height: 280px;
+        max-width: 350px;
+        max-height: 350px;
     }
     
     .start-continue-btn {
-        padding: 14px 20px;
-        font-size: 15px;
+        padding: 14px 15px;
+        font-size: 16px;
     }
 }
 
@@ -261,8 +177,8 @@
     }
     
     .game-image-container {
-        max-width: 240px;
-        height: 240px;
+        max-width: 320px;
+        max-height: 320px;
     }
     
     .game-fallback-large h2 {
@@ -270,6 +186,89 @@
     }
     
     .game-action-buttons {
-        max-width: 240px;
+        max-width: 200px;
+    }
+}
+
+/* Game Image Skeleton */
+.game-image-skeleton {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 20px;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: pulse 1.5s ease-in-out infinite;
+    z-index: 1;
+}
+
+/* Pulse animation for skeleton */
+@keyframes pulse {
+    0% {
+        background-position: -200% 0;
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.8;
+    }
+    100% {
+        background-position: 200% 0;
+        opacity: 1;
+    }
+}
+
+/* Game image loaded state */
+.game-main-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    opacity: 0;
+}
+
+.game-main-image.loaded {
+    opacity: 1;
+}
+
+.game-image-container:hover .game-main-image.loaded {
+    transform: scale(1.05);
+}
+
+/* Fallback container */
+.fallback-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+}
+
+/* Update existing fallback styles */
+.game-fallback-large {
+    width: 100%;
+    height: 100%;
+    display: none; /* Hidden by default, shown via JS */
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    padding: 20px;
+    opacity: 0;
+    animation: fadeIn 0.3s ease forwards;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
     }
 }

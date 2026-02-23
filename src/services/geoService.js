@@ -21,8 +21,22 @@ class GeoService {
                 body: JSON.stringify(requestData)
             });
 
-            const countries = await handleApiResponse(response);
-            this.countries = Array.isArray(countries) ? countries : [];
+            // Pass endpoint name
+            const result = await handleApiResponse(response, 'getCountries');
+            
+            // Handle different response structures
+            let countriesList = [];
+            
+            if (Array.isArray(result)) {
+                countriesList = result;
+            } else if (result && typeof result === 'object') {
+                // Try common field names
+                if (Array.isArray(result.countries)) countriesList = result.countries;
+                else if (Array.isArray(result.data)) countriesList = result.data;
+                else if (Array.isArray(result.list)) countriesList = result.list;
+            }
+            
+            this.countries = countriesList;
             
             // Cache the results
             cacheService.setItem('countries', this.countries, API_CONFIG.CACHE_DURATION.GEO_DATA);
@@ -31,7 +45,7 @@ class GeoService {
         } catch (error) {
             console.error('Error fetching countries:', error);
             
-            // Return empty array if error
+            // Return cached data if available
             return this.countries;
         }
     }
@@ -53,8 +67,22 @@ class GeoService {
                 body: JSON.stringify(requestData)
             });
 
-            const cities = await handleApiResponse(response);
-            this.cities[countryId] = Array.isArray(cities) ? cities : [];
+            // Pass endpoint name
+            const result = await handleApiResponse(response, 'getCities');
+            
+            // Handle different response structures
+            let citiesList = [];
+            
+            if (Array.isArray(result)) {
+                citiesList = result;
+            } else if (result && typeof result === 'object') {
+                // Try common field names
+                if (Array.isArray(result.cities)) citiesList = result.cities;
+                else if (Array.isArray(result.data)) citiesList = result.data;
+                else if (Array.isArray(result.list)) citiesList = result.list;
+            }
+            
+            this.cities[countryId] = citiesList;
             
             // Cache the results
             cacheService.setItem(cacheKey, this.cities[countryId], API_CONFIG.CACHE_DURATION.GEO_DATA);
@@ -63,7 +91,13 @@ class GeoService {
         } catch (error) {
             console.error('Error fetching cities:', error);
             
-            // Return empty array if error
+            // Return cached data if available
+            const cached = cacheService.getItem(cacheKey);
+            if (cached) {
+                this.cities[countryId] = cached;
+                return cached;
+            }
+            
             return this.cities[countryId] || [];
         }
     }

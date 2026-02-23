@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import gamesService from '../services/gameService';
 import { Box, CircularProgress, Alert } from '@mui/material';
 import { IoIosArrowBack } from "react-icons/io";
-import { IoArrowBackCircle } from "react-icons/io5";
+import { IoArrowBackCircle, IoArrowForwardCircle } from "react-icons/io5";
 import { TbCards } from "react-icons/tb";
 import './GameCard.css';
 
@@ -80,7 +80,6 @@ const GameCard = () => {
     const handleNextCard = () => {
         if (currentQuestionIndex < questions.length - 1) {
             const newIndex = currentQuestionIndex + 1;
-            setCurrentQuestionIndex(newIndex);
             
             // Save progress
             const newProgress = {
@@ -92,12 +91,26 @@ const GameCard = () => {
             
             // Trigger card animation
             if (cardStackRef.current) {
-                cardStackRef.current.classList.add('card-slide-out');
-                setTimeout(() => {
-                    if (cardStackRef.current) {
-                        cardStackRef.current.classList.remove('card-slide-out');
-                    }
-                }, 300);
+                const currentCard = cardStackRef.current.querySelector('.current-card');
+                if (currentCard) {
+                    currentCard.classList.add('card-slide-out-right');
+                    
+                    setTimeout(() => {
+                        // Update index after animation
+                        setCurrentQuestionIndex(newIndex);
+                        
+                        // Remove animation class for next animation
+                        setTimeout(() => {
+                            if (currentCard) {
+                                currentCard.classList.remove('card-slide-out-right');
+                            }
+                        }, 50);
+                    }, 300);
+                } else {
+                    setCurrentQuestionIndex(newIndex);
+                }
+            } else {
+                setCurrentQuestionIndex(newIndex);
             }
         } else {
             // Game completed - clear progress
@@ -108,7 +121,31 @@ const GameCard = () => {
 
     const handlePrevCard = () => {
         if (currentQuestionIndex > 0) {
-            setCurrentQuestionIndex(prev => prev - 1);
+            const newIndex = currentQuestionIndex - 1;
+            
+            // Trigger card animation
+            if (cardStackRef.current) {
+                const currentCard = cardStackRef.current.querySelector('.current-card');
+                if (currentCard) {
+                    currentCard.classList.add('card-slide-out-left');
+                    
+                    setTimeout(() => {
+                        // Update index after animation
+                        setCurrentQuestionIndex(newIndex);
+                        
+                        // Remove animation class for next animation
+                        setTimeout(() => {
+                            if (currentCard) {
+                                currentCard.classList.remove('card-slide-out-left');
+                            }
+                        }, 50);
+                    }, 300);
+                } else {
+                    setCurrentQuestionIndex(newIndex);
+                }
+            } else {
+                setCurrentQuestionIndex(newIndex);
+            }
         }
     };
 
@@ -137,106 +174,34 @@ const GameCard = () => {
         // Always show at least one card
         if (totalQuestions === 0) return [];
         
-        // For first card, show next card underneath
-        if (currentIndex === 0 && totalQuestions > 1) {
-            stack.push({ 
-                index: currentIndex, 
-                isCurrent: true,
-                zIndex: 3,
-                rotation: 0,
-                translateY: 0
-            });
-            stack.push({ 
+        // Show only current card
+        stack.push({ 
+            index: currentIndex, 
+            isCurrent: true,
+            zIndex: 3,
+            rotation: 0,
+            translateY: 0
+        });
+        
+        // Show next card behind if exists
+        if (currentIndex < totalQuestions - 1) {
+            stack.unshift({ 
                 index: currentIndex + 1, 
                 isCurrent: false,
                 zIndex: 2,
                 rotation: 3,
-                translateY: 10
+                translateY: 15
             });
         }
-        // For last card, show previous card underneath
-        else if (currentIndex === totalQuestions - 1 && totalQuestions > 1) {
-            stack.push({ 
-                index: currentIndex - 1, 
-                isCurrent: false,
-                zIndex: 2,
-                rotation: -3,
-                translateY: 10
-            });
-            stack.push({ 
-                index: currentIndex, 
-                isCurrent: true,
-                zIndex: 3,
-                rotation: 0,
-                translateY: 0
-            });
-        }
-        // For middle cards, show both previous and next
-        else if (totalQuestions > 2) {
-            stack.push({ 
+        
+        // Show previous card behind if exists
+        if (currentIndex > 0) {
+            stack.unshift({ 
                 index: currentIndex - 1, 
                 isCurrent: false,
                 zIndex: 1,
-                rotation: -2,
-                translateY: 20
-            });
-            stack.push({ 
-                index: currentIndex, 
-                isCurrent: true,
-                zIndex: 3,
-                rotation: 0,
-                translateY: 0
-            });
-            stack.push({ 
-                index: currentIndex + 1, 
-                isCurrent: false,
-                zIndex: 2,
-                rotation: 2,
-                translateY: 10
-            });
-        }
-        // For two cards only
-        else if (totalQuestions === 2) {
-            if (currentIndex === 0) {
-                stack.push({ 
-                    index: currentIndex, 
-                    isCurrent: true,
-                    zIndex: 3,
-                    rotation: 0,
-                    translateY: 0
-                });
-                stack.push({ 
-                    index: 1, 
-                    isCurrent: false,
-                    zIndex: 2,
-                    rotation: 3,
-                    translateY: 10
-                });
-            } else {
-                stack.push({ 
-                    index: 0, 
-                    isCurrent: false,
-                    zIndex: 2,
-                    rotation: -3,
-                    translateY: 10
-                });
-                stack.push({ 
-                    index: currentIndex, 
-                    isCurrent: true,
-                    zIndex: 3,
-                    rotation: 0,
-                    translateY: 0
-                });
-            }
-        }
-        // Single card
-        else {
-            stack.push({ 
-                index: currentIndex, 
-                isCurrent: true,
-                zIndex: 3,
-                rotation: 0,
-                translateY: 0
+                rotation: -3,
+                translateY: 30
             });
         }
         
@@ -275,87 +240,101 @@ const GameCard = () => {
         const cardStack = getCardStack();
         const currentQuestion = questions[currentQuestionIndex];
         const isLastQuestion = currentQuestionIndex === questions.length - 1;
+        const isFirstQuestion = currentQuestionIndex === 0;
 
         return (
             <>
-                {/* Card Stack */}
-                <div className="card-stack-container" ref={cardStackRef}>
-                    {cardStack.map((card, i) => {
-                        const question = questions[card.index];
-                        if (!question) return null;
-                        
-                        return (
-                            <div
-                                key={`${card.index}-${i}`}
-                                className={`stacked-card ${card.isCurrent ? 'current-card' : ''}`}
-                                style={{
-                                    zIndex: card.zIndex,
-                                    transform: `rotate(${card.rotation}deg) translateY(${card.translateY}px)`,
-                                    backgroundColor: game.color || '#FF6B6B',
-                                    transition: card.isCurrent ? 'transform 0.3s ease' : 'none'
-                                }}
-                            >
-                                <div className="card-content">
-                                    <h3 className="card-text">{question.question}</h3>
-                                    {card.isCurrent && (
-                                        <div className="card-progress">
-                                            <span className="card-counter">
-                                                {currentQuestionIndex + 1} / {questions.length}
-                                            </span>
+                {/* Main Content Container */}
+                <div className="centered-content">
+                    {/* Card and Navigation Container */}
+                    <div className="card-nav-container">
+                        {/* Left Navigation Button */}
+                        <button 
+                            className="nav-button"
+                            onClick={handlePrevCard}
+                            disabled={isFirstQuestion}
+                            aria-label="Previous card"
+                            style={{ 
+                                color: game.color || '#FF6B6B',
+                                opacity: isFirstQuestion ? 0.3 : 1
+                            }}
+                        >
+                            <IoArrowBackCircle size="100%" />
+                        </button>
+
+                        {/* Card Stack Container */}
+                        <div className="card-stack-wrapper" ref={cardStackRef}>
+                            <div className="card-stack-container">
+                                {cardStack.map((card, i) => {
+                                    const question = questions[card.index];
+                                    if (!question) return null;
+                                    
+                                    return (
+                                        <div
+                                            key={`${card.index}-${i}`}
+                                            className={`stacked-card ${card.isCurrent ? 'current-card' : ''}`}
+                                            style={{
+                                                zIndex: card.zIndex,
+                                                transform: `rotate(${card.rotation}deg) translateY(${card.translateY}px)`,
+                                                backgroundColor: game.color || '#FF6B6B',
+                                                transition: card.isCurrent ? 'transform 0.3s ease' : 'none'
+                                            }}
+                                        >
+                                            <div className="card-content">
+                                                <h3 className="card-text">{question.question}</h3>
+                                                {/* {card.isCurrent && (
+                                                    <div className="card-progress">
+                                                        <span className="card-counter">
+                                                            {currentQuestionIndex + 1} / {questions.length}
+                                                        </span>
+                                                    </div>
+                                                )} */}
+                                            </div>
+                                            {!card.isCurrent && (
+                                                <div className="card-shadow"></div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
-                                {!card.isCurrent && (
-                                    <div className="card-shadow"></div>
-                                )}
+                                    );
+                                })}
                             </div>
-                        );
-                    })}
+                            
+                        </div>
+
+                        {/* Right Navigation Button */}
+                        <button 
+                            className="nav-button"
+                            onClick={handleNextCard}
+                            disabled={isLastQuestion}
+                            aria-label="Next card"
+                            style={{ 
+                                color: game.color || '#FF6B6B',
+                                opacity: isLastQuestion ? 0.3 : 1
+                            }}
+                        >
+                            <IoArrowForwardCircle size="100%" />
+                        </button>
+                    </div>
+
+                    {/* Shuffle Button Container */}
+                    <div className="shuffle-container">
+                        <button 
+                            className="control-btn shuffle-btn"
+                            onClick={handleShuffle}
+                            style={{ 
+                                backgroundColor: game.color || '#FF6B6B',
+                                color: '#ffffff'
+                            }}
+                        >
+                            SHUFFLE CARDS
+                        </button>
+                    </div>
                 </div>
 
-                {/* Navigation Controls */}
-                <div className="card-navigation">
-                    <button 
-                        className="nav-button prev-button"
-                        onClick={handlePrevCard}
-                        disabled={currentQuestionIndex === 0}
-                        aria-label="Previous card"
-                        style={{ 
-                            color: game.color || '#FF6B6B',
-                            opacity: currentQuestionIndex === 0 ? 0.3 : 1
-                        }}
-                    >
-                        <IoArrowBackCircle size={40} />
-                    </button>
-                    
-                    <button 
-                        className="nav-button next-button"
-                        onClick={handleNextCard}
-                        disabled={isLastQuestion}
-                        aria-label="Next card"
-                        style={{ 
-                            color: game.color || '#FF6B6B',
-                            transform: 'rotate(180deg)',
-                            opacity: isLastQuestion ? 0.3 : 1
-                        }}
-                    >
-                        <IoArrowBackCircle size={40} />
-                    </button>
-                </div>
-
-                {/* Controls */}
-                <div className="game-controls">
-                    <button 
-                        className="control-btn shuffle-btn"
-                        onClick={handleShuffle}
-                        style={{ 
-                            backgroundColor: game.color || '#FF6B6B',
-                            color: '#ffffff'
-                        }}
-                    >
-                        <TbCards size={20} style={{ marginRight: '8px' }} />
-                        SHUFFLE CARDS
-                    </button>
+                {/* Footer */}
+                <div className='promo-footer'>
+                    <a className='site-link' target='_blank' rel='noopener noreferrer' href='https://daretoconnectgames.com/'>
+                        www.daretoconnectgames.com
+                    </a>
                 </div>
             </>
         );

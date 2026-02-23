@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './SideBar.css';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import packageJson from '../../../package.json';
 import { IoHomeOutline, IoGameControllerOutline, IoList, IoMailOutline, IoShareSocial, IoPower } from "react-icons/io5";
 import { FaRegUser } from "react-icons/fa6";
+import { useAuth } from '../../context/AuthContext';
+import shareService from '../../services/shareService'; // Import share service
 
 const SideBar = ({ onItemClick, isOpen = true, profileImage, onClose, enableGestures = true }) => {
     const [activeItem, setActiveItem] = useState('home');
     const location = useLocation();
+    const navigate = useNavigate();
+    const { logout } = useAuth();
 
     const items = [
         { id: 'home', label: 'Home', icon: <IoHomeOutline /> },
@@ -31,14 +35,47 @@ const SideBar = ({ onItemClick, isOpen = true, profileImage, onClose, enableGest
             setActiveItem('account');
         } else if (path.includes('/help')) {
             setActiveItem('help');
-        } else if (path.includes('/referral')) {
-            setActiveItem('referral');
         }
     }, [location.pathname]);
 
-    const handleItemClick = (item) => {
+    const handleItemClick = async (item) => {
         setActiveItem(item.id);
         onItemClick?.(item);
+        
+        // Handle navigation based on item id
+        switch (item.id) {
+            case 'home':
+                navigate('/library');
+                break;
+            case 'games':
+                navigate('/library');
+                break;
+            case 'subscription':
+                navigate('/subscriptions');
+                break;
+            case 'account':
+                navigate('/account');
+                break;
+            case 'help':
+                navigate('/help');
+                break;
+            case 'referral':
+                // Use share service for native sharing
+                await shareService.shareApp();
+                setActiveItem(prev => prev); // Don't change active item for share
+                break;
+            case 'logout':
+                logout();
+                navigate('/'); // Redirect to splash screen
+                break;
+            default:
+                navigate('/library');
+        }
+        
+        // Close sidebar on mobile after click
+        if (window.innerWidth <= 768) {
+            onClose?.();
+        }
     };
 
     const handleCloseClick = (e) => {
@@ -58,7 +95,7 @@ const SideBar = ({ onItemClick, isOpen = true, profileImage, onClose, enableGest
             </button>
             
             <div className="sidebar-header">
-                {profileImage && <img src={profileImage} alt="Profile" className="profile-image" />}
+                {profileImage && <img src={profileImage} alt="Profile" className="sidebar-user-icon" />}
                 <span className="version-text">Version: {packageJson.version}</span>
             </div>
             

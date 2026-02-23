@@ -6,6 +6,9 @@ import { Box, CircularProgress } from '@mui/material';
 import { IoIosArrowBack } from "react-icons/io";
 import './GameDetails.css';
 
+// Image cache for game details
+const gameImageCache = new Map();
+
 const GameDetails = () => {
     const { gameId } = useParams();
     const navigate = useNavigate();
@@ -13,6 +16,8 @@ const GameDetails = () => {
     const [game, setGame] = useState(null);
     const [loading, setLoading] = useState(true);
     const [hasProgress, setHasProgress] = useState(false);
+    const [imageLoading, setImageLoading] = useState(true);
+    const [imageError, setImageError] = useState(false);
 
     useEffect(() => {
         loadGameDetails();
@@ -21,6 +26,8 @@ const GameDetails = () => {
 
     const loadGameDetails = async () => {
         setLoading(true);
+        setImageLoading(true);
+        setImageError(false);
         
         try {
             // Get game from cache or API
@@ -47,6 +54,38 @@ const GameDetails = () => {
             setLoading(false);
         }
     };
+
+    const preloadImage = () => {
+        if (!game) return;
+        
+        const imageUrl = game.image2 || game.image1;
+        
+        // Check cache first
+        if (gameImageCache.has(imageUrl)) {
+            setImageLoading(false);
+            return;
+        }
+
+        const img = new Image();
+        img.onload = () => {
+            // Cache the image URL
+            gameImageCache.set(imageUrl, true);
+            setImageLoading(false);
+            setImageError(false);
+        };
+        img.onerror = () => {
+            console.warn(`Failed to load image for game ${gameId}`);
+            setImageLoading(false);
+            setImageError(true);
+        };
+        img.src = imageUrl;
+    };
+
+    useEffect(() => {
+        if (game) {
+            preloadImage();
+        }
+    }, [game]);
 
     const checkProgress = () => {
         const saved = localStorage.getItem(`game_${gameId}_progress`);
@@ -83,6 +122,29 @@ const GameDetails = () => {
         navigate(`/card/${gameId}`);
     };
 
+    const handleImageError = (e) => {
+        setImageError(true);
+        e.target.style.display = 'none';
+        const parent = e.target.parentElement;
+        
+        // Create fallback if it doesn't exist
+        let fallback = parent.querySelector('.game-fallback-large');
+        if (!fallback) {
+            fallback = document.createElement('div');
+            fallback.className = 'game-fallback-large';
+            fallback.style.backgroundColor = game?.color || '#1674a2';
+            fallback.innerHTML = `<h2>${game?.gameName || 'Game'}</h2>`;
+            parent.appendChild(fallback);
+        }
+        
+        fallback.style.display = 'flex';
+    };
+
+    const handleImageLoad = () => {
+        setImageLoading(false);
+        setImageError(false);
+    };
+
     const renderContent = () => {
         if (loading || !game) {
             return (
@@ -95,19 +157,37 @@ const GameDetails = () => {
         return (
             <div className="game-details-content">
                 <div className="game-image-container">
-                    <img 
-                        src={game.image2 || game.image1} 
-                        alt={game.gameName} 
-                        className="game-main-image"
-                        onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.parentElement.innerHTML = `
-                                <div class="game-fallback-large" style="background-color: ${game.color || '#1674a2'};">
-                                    <h2>${game.gameName}</h2>
-                                </div>
-                            `;
-                        }}
-                    />
+                    {/* Pulsing Skeleton */}
+                    {imageLoading && !imageError && (
+                        <div className="game-image-skeleton"></div>
+                    )}
+                    
+                    {/* Game Image - hidden until loaded */}
+                    {!imageError && (
+                        <img 
+                            src={game.image2 || game.image1} 
+                            alt={game.gameName} 
+                            className={`game-main-image ${!imageLoading ? 'loaded' : ''}`}
+                            onLoad={handleImageLoad}
+                            onError={handleImageError}
+                            style={{ display: imageLoading ? 'none' : 'block' }}
+                        />
+                    )}
+                    
+                    {/* Fallback Container */}
+                    <div className="fallback-container">
+                        {imageError && (
+                            <div 
+                                className="game-fallback-large"
+                                style={{ 
+                                    backgroundColor: game.color || '#1674a2',
+                                    display: 'flex'
+                                }}
+                            >
+                                <h2>{game.gameName}</h2>
+                            </div>
+                        )}
+                    </div>
                 </div>
                 
                 <div className="game-action-buttons">
@@ -118,7 +198,7 @@ const GameDetails = () => {
                             backgroundColor: game.color || '#1674a2'
                         }}
                     >
-                        Start New
+                        Start
                     </button>
                     <button 
                         className={`start-continue-btn ${!hasProgress ? 'disabled' : ''}`}
@@ -129,7 +209,7 @@ const GameDetails = () => {
                         }}
                         disabled={!hasProgress}
                     >
-                        {hasProgress ? 'Continue' : 'No Progress'}
+                        Continue
                     </button>
                 </div>
             </div>
@@ -152,6 +232,12 @@ const GameDetails = () => {
             </div>
             
             {renderContent()}
+            
+            <div className='game-details-footer'>
+                <a className='footer-promo-link' target='blank' rel='noopener noreferrer' href='https://daretoconnectgames.com/'>
+                    www.daretoconnectgames.com
+                </a>
+            </div>
         </div>
     );
 };

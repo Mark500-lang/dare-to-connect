@@ -1,12 +1,9 @@
-/* GameLibrary.css */
 .library-container {
     position: relative;
     overflow-y: auto;
     height: 100vh;
-    padding-top: 90px; /* Space for sticky header */
-    padding-bottom: 50px;
-    -webkit-overflow-scrolling: touch;
-    background: #f8f9fa;
+    padding-top: 90px;
+    padding-bottom: 10px;
 }
 
 /* Pull to Refresh Indicator */
@@ -43,10 +40,6 @@
     height: 100%;
 }
 
-.refresh-spinner svg circle {
-    transition: stroke-dashoffset 0.2s;
-}
-
 /* Sticky Header */
 .library-header {
     position: fixed;
@@ -59,8 +52,6 @@
     display: flex;
     align-items: center;
     gap: 30px;
-    border-bottom: 1px solid #e0e0e0;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
 .sidebar-toggle {
@@ -78,12 +69,6 @@
 
 .sidebar-toggle:hover {
     color: #1674a2;
-    transform: scale(1.05);
-    background: rgba(22, 116, 162, 0.1);
-}
-
-.sidebar-toggle:active {
-    transform: scale(0.95);
 }
 
 .toggle-icon {
@@ -93,24 +78,23 @@
 }
 
 .library-title {
-    font-size: 22px;
-    font-weight: 400;
-    margin: 0 0 5px 0;
-    color: #2c3e50;
-    line-height: 1.2;
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+    color: #333;
 }
 
 /* Games Grid */
 .games-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 15px;
-    padding: 0 12px;
+    gap: 30px;
+    padding: 0 30px 50px;
     max-width: 1200px;
     margin: 0 auto;
 }
 
-/* Game Card */
+/* Game Card Container */
 .game-card {
     border-radius: 30px;
     box-shadow: -5px 4px 8px rgba(0, 0, 0, 0.301);
@@ -118,8 +102,8 @@
     position: relative;
     overflow: hidden;
     cursor: pointer;
-    aspect-ratio: 1; /* Makes cards square */
-    background: white;
+    aspect-ratio: 1;
+    background-color: transparent;
 }
 
 .game-card:hover {
@@ -127,37 +111,54 @@
     box-shadow: -5px 8px 20px rgba(0, 0, 0, 0.2);
 }
 
-.game-card-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    transition: transform 0.5s ease;
-}
-
 .game-card:hover .game-card-image {
     transform: scale(1.1);
 }
 
-/* Game Title Overlay */
-.game-card-title-overlay {
+/* Image Container */
+.game-image-card-container {
     position: absolute;
-    bottom: 0;
+    top: 0;
     left: 0;
-    right: 0;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
-    padding: 15px 10px 10px;
-    border-radius: 0 0 30px 30px;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
 }
 
-.game-card-title {
-    color: white;
-    margin: 0;
-    font-size: 14px;
-    font-weight: 500;
-    text-align: center;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-    line-height: 1.2;
+.game-card-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease, opacity 0.3s ease;
+    opacity: 0;
+}
+
+.game-card-image.loaded {
+    opacity: 1;
+}
+
+/* Skeleton Container */
+.skeleton-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+/* Pulsing Skeleton */
+.game-card-skeleton {
+    width: 100%;
+    height: 100%;
+    border-radius: 30px;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.game-card-skeleton.hidden {
+    display: none;
 }
 
 /* Game Fallback */
@@ -171,32 +172,34 @@
     font-size: 48px;
     font-weight: bold;
     border-radius: 30px;
+    background-color: #1674a2;
+    opacity: 0;
+    animation: fadeIn 0.3s ease forwards;
 }
 
-/* Loading Skeleton */
-.game-card-skeleton {
-    border-radius: 30px;
-    background: #e0e0e0;
+/* Loading Skeleton Grid for initial load */
+.skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 30px;
+    padding: 0 30px 50px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.skeleton-card {
     aspect-ratio: 1;
-    overflow: hidden;
+    border-radius: 30px;
     position: relative;
+    overflow: hidden;
 }
 
-.skeleton-image {
+.skeleton-pulse {
     width: 100%;
     height: 100%;
     background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
     background-size: 200% 100%;
-    animation: loading 1.5s infinite;
-}
-
-@keyframes loading {
-    0% {
-        background-position: -200% 0;
-    }
-    100% {
-        background-position: 200% 0;
-    }
+    animation: pulse 1.5s ease-in-out infinite;
 }
 
 /* No Games Message */
@@ -246,21 +249,43 @@
     animation: spin 1s linear infinite;
 }
 
+/* Animations */
+@keyframes pulse {
+    0% {
+        background-position: -200% 0;
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.8;
+    }
+    100% {
+        background-position: 200% 0;
+        opacity: 1;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
 
 /* Promo Footer */
 .promo-footer {
-    position: fixed;
+    display: block;
     bottom: 0;
     left: 0;
     right: 0;
     background: white;
-    padding: 15px 0;
+    padding: 0 !important;
     text-align: center;
-    border-top: 1px solid #e0e0e0;
-    z-index: 99;
 }
 
 .site-link {
@@ -277,18 +302,16 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    .games-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
-        padding: 0 10px;
+    .games-grid,
+    .skeleton-grid {
+        gap: 20px;
+        padding: 0 20px 40px;
     }
     
-    .game-card {
+    .game-card,
+    .skeleton-card,
+    .game-card-skeleton {
         border-radius: 25px;
-    }
-    
-    .game-card-title {
-        font-size: 13px;
     }
 }
 
@@ -302,18 +325,19 @@
         font-size: 20px;
     }
     
-    .games-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-        padding: 0 8px;
+    .games-grid,
+    .skeleton-grid {
+        gap: 15px;
+        padding: 0 18px 40px;
     }
     
-    .game-card {
+    .game-card,
+    .skeleton-card,
+    .game-card-skeleton {
         border-radius: 20px;
     }
     
-    .game-card-title {
-        font-size: 12px;
-        padding: 10px 5px 8px;
+    .game-fallback {
+        font-size: 36px;
     }
 }

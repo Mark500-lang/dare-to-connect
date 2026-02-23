@@ -13,6 +13,15 @@ import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import ResetPassword from './components/auth/ResetPassword';
 
+/* ACCOUNT SCREENS */
+import Account from './components/account/Account';
+import EditProfile from './components/account/EditProfile';
+import ChangePassword from './components/account/ChangePassword';
+import DeleteAccount from './components/account/DeleteAccount';
+import TellAFriend from './components/TellAFriend';
+import Subscriptions from './components/Subscriptions';
+import NeedHelp from './components/NeedHelp';
+
 function App() {
   return (
     <AuthProvider>
@@ -33,10 +42,13 @@ function App() {
             
             {/* MAIN APP ROUTES */}
             <Route path="library" element={<GameLibrary />} />
-            <Route path="subscription" element={<div>My Subscription Page</div>} />
-            <Route path="account" element={<div>My Account Page</div>} />
-            <Route path="help" element={<div>Need Help Page</div>} />
-            <Route path="referral" element={<div>Tell a Friend Page</div>} />
+            <Route path="subscriptions" element={<Subscriptions/>} />
+            <Route path="account" element={<Account />} />
+            <Route path="account/edit" element={<EditProfile />} />
+            <Route path="account/password" element={<ChangePassword />} />
+            <Route path="account/delete" element={<DeleteAccount />} />
+            <Route path="referral" element={<TellAFriend/>} />
+            <Route path="help" element={<NeedHelp/>} />
             
             {/* GAME PAGES */}
             <Route path="games/:gameId" element={<GameDetails />} />

@@ -78,7 +78,7 @@ const Layout = () => {
         };
 
         // Only enable swipe gestures on mobile
-        if (window.innerWidth <= 768) {
+        if (window.innerWidth <= 1300) {
             document.addEventListener('touchstart', handleTouchStart);
             document.addEventListener('touchmove', handleTouchMove);
             document.addEventListener('touchend', handleTouchEnd);

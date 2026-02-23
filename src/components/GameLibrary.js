@@ -2,15 +2,40 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Box } from '@mui/material';
 import { RiMenu2Line } from "react-icons/ri";
 import './GameLibrary.css';
+
+// Image cache to store loaded images
+const imageCache = new Map();
+
+// Preload image function with caching
+const preloadImage = (url, gameId) => {
+    return new Promise((resolve, reject) => {
+        // Check cache first
+        if (imageCache.has(url)) {
+            resolve({ url, gameId, fromCache: true });
+            return;
+        }
+
+        const img = new Image();
+        img.onload = () => {
+            // Cache the image URL
+            imageCache.set(url, true);
+            resolve({ url, gameId, fromCache: false });
+        };
+        img.onerror = () => {
+            reject(new Error(`Failed to load image: ${url}`));
+        };
+        img.src = url;
+    });
+};
 
 const GameLibrary = () => {
     const navigate = useNavigate();
     const { toggleSidebar } = useOutletContext();
     const { games, refreshGames, loading, error, isAuthenticated } = useAuth();
     const [refreshing, setRefreshing] = useState(false);
+    const [imageStates, setImageStates] = useState({}); // { gameId: { loading: boolean, loaded: boolean, error: boolean } }
     const [pullState, setPullState] = useState({
         isPulling: false,
         startY: 0,
@@ -20,13 +45,72 @@ const GameLibrary = () => {
     
     const containerRef = useRef(null);
     const pullStartY = useRef(0);
+    const preloadPromises = useRef([]);
 
     useEffect(() => {
         // Initial load if games not already loaded
         if (!games || games.length === 0) {
             loadGames();
+        } else {
+            // Initialize image states when games are loaded
+            initializeImageStates();
+            // Preload images
+            preloadImages();
         }
-    }, []);
+    }, [games]);
+
+    const initializeImageStates = () => {
+        if (!games || games.length === 0) return;
+        
+        const initialStates = {};
+        games.forEach(game => {
+            initialStates[game.id] = {
+                loading: true,
+                loaded: imageCache.has(game.image1), // Check cache immediately
+                error: false
+            };
+        });
+        setImageStates(initialStates);
+    };
+
+    const preloadImages = async () => {
+        if (!games || games.length === 0) return;
+        
+        preloadPromises.current = games.map(game => 
+            preloadImage(game.image1, game.id)
+                .then(result => {
+                    // Update state when image loads successfully
+                    setImageStates(prev => ({
+                        ...prev,
+                        [result.gameId]: {
+                            loading: false,
+                            loaded: true,
+                            error: false
+                        }
+                    }));
+                })
+                .catch(err => {
+                    console.warn(`Failed to preload image for game ${game.id}:`, err.message);
+                    // Update state on error
+                    setImageStates(prev => ({
+                        ...prev,
+                        [game.id]: {
+                            loading: false,
+                            loaded: false,
+                            error: true
+                        }
+                    }));
+                })
+        );
+
+        // Optional: Wait for all images to load (or fail) before doing something
+        try {
+            await Promise.allSettled(preloadPromises.current);
+        } catch (err) {
+            // Handle any unexpected errors
+            console.warn('Error in image preloading:', err);
+        }
+    };
 
     const loadGames = async (forceRefresh = false) => {
         try {
@@ -34,6 +118,33 @@ const GameLibrary = () => {
         } catch (err) {
             console.log('Error loading games:', err.message);
         }
+    };
+
+    const handleImageLoad = (gameId) => {
+        setImageStates(prev => ({
+            ...prev,
+            [gameId]: {
+                ...prev[gameId],
+                loading: false,
+                loaded: true,
+                error: false
+            }
+        }));
+    };
+
+    const handleImageError = (gameId, e) => {
+        // Hide the broken image
+        e.target.style.display = 'none';
+        
+        setImageStates(prev => ({
+            ...prev,
+            [gameId]: {
+                ...prev[gameId],
+                loading: false,
+                loaded: false,
+                error: true
+            }
+        }));
     };
 
     const handlePullStart = (e) => {
@@ -69,6 +180,11 @@ const GameLibrary = () => {
             setRefreshing(true);
             try {
                 await refreshGames(true);
+                
+                // Clear cache and reinitialize states on refresh
+                imageCache.clear();
+                initializeImageStates();
+                preloadImages();
             } catch (err) {
                 console.log('Refresh error:', err.message);
             } finally {
@@ -83,7 +199,7 @@ const GameLibrary = () => {
             pullDistance: 0,
             maxPullDistance: 80
         });
-    }, [pullState, refreshGames]);
+    }, [pullState, refreshGames, games]);
 
     useEffect(() => {
         const container = containerRef.current;
@@ -119,27 +235,53 @@ const GameLibrary = () => {
     }, [handlePullEnd]);
 
     const handleGameClick = async (game) => {
-        // Game ID 1 (Free Trial) is always accessible
         if (game.id === 1) {
             navigate(`/games/${game.id}`);
             return;
         }
 
-        // Check if user is authenticated
         if (!isAuthenticated) {
-            // Redirect to registration page if not logged in
             navigate('/register');
             return;
         }
 
-        // For now, allow access to all games
-        // In the future, we'll add subscription check here
         navigate(`/games/${game.id}`);
     };
 
-    // Calculate pull indicator rotation and opacity
     const pullProgress = Math.min(pullState.pullDistance / 50, 1);
     const spinnerRotation = pullProgress * 360;
+
+    // Render initial loading skeletons
+    if (loading && (!games || games.length === 0)) {
+        return (
+            <div className="library-container" ref={containerRef}>
+                <header className="library-header">
+                    <button 
+                        className="sidebar-toggle"
+                        onClick={toggleSidebar}
+                        aria-label="Open menu"
+                    >
+                        <span className="toggle-icon"><RiMenu2Line/></span>
+                    </button>
+                    <h1 className='library-title'>Choose a Game</h1>
+                </header>
+                
+                <div className="skeleton-grid">
+                    {Array.from({ length: 6 }).map((_, index) => (
+                        <div key={index} className="skeleton-card">
+                            <div className="skeleton-pulse"></div>
+                        </div>
+                    ))}
+                </div>
+                
+                <div className='promo-footer'>
+                    <a className='site-link' target='blank' rel='noopener noreferrer' href='https://daretoconnectgames.com/'>
+                        www.daretoconnectgames.com
+                    </a>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div 
@@ -151,7 +293,7 @@ const GameLibrary = () => {
                 height: '100vh'
             }}
         >
-            {/* Pull to refresh indicator - Hidden until pulled */}
+            {/* Pull to refresh indicator */}
             <div 
                 className="pull-to-refresh-indicator"
                 style={{
@@ -173,7 +315,7 @@ const GameLibrary = () => {
                 </div>
             </div>
 
-            {/* Sticky Header with Hamburger Menu */}
+            {/* Sticky Header */}
             <header className="library-header">
                 <button 
                     className="sidebar-toggle"
@@ -187,54 +329,67 @@ const GameLibrary = () => {
             
             {/* Games Grid */}
             <div className="games-grid">
-                {loading && !games.length ? (
-                    // Loading skeleton
-                    Array.from({ length: 4 }).map((_, index) => (
-                        <div key={index} className="game-card-skeleton">
-                            <div className="skeleton-image"></div>
-                        </div>
-                    ))
-                ) : (
-                    // Display games
-                    games && games.length > 0 ? (
-                        games.map((game) => (
+                {games && games.length > 0 ? (
+                    games.map((game) => {
+                        const imageState = imageStates[game.id] || { loading: true, loaded: false, error: false };
+                        const showSkeleton = imageState.loading || !imageState.loaded;
+                        
+                        return (
                             <div 
                                 key={game.id} 
                                 className="game-card"
                                 onClick={() => handleGameClick(game)}
                             >
-                                <img 
-                                    src={game.image1} 
-                                    alt={game.gameName} 
-                                    className="game-card-image"
-                                    loading="lazy"
-                                    onError={(e) => {
-                                        e.target.style.display = 'none';
-                                        e.target.parentElement.innerHTML = `
-                                            <div class="game-fallback" style="background-color: ${game.color || '#1674a2'};">
-                                                ${game.gameName.charAt(0).toUpperCase()}
-                                            </div>
-                                        `;
-                                    }}
-                                />
-                                {/* <div className="game-card-title-overlay">
-                                    <h3 className="game-card-title">{game.gameName}</h3>
-                                </div> */}
+                                {/* Image Container */}
+                                <div className="game-card-image-container">
+                                    {/* Game Image - hidden until loaded */}
+                                    {!imageState.error && (
+                                        <img 
+                                            src={game.image1} 
+                                            alt={game.gameName} 
+                                            className={`game-card-image ${imageState.loaded ? 'loaded' : ''}`}
+                                            loading="lazy"
+                                            onLoad={() => handleImageLoad(game.id)}
+                                            onError={(e) => handleImageError(game.id, e)}
+                                            style={{ 
+                                                display: imageState.loaded ? 'block' : 'none'
+                                            }}
+                                        />
+                                    )}
+                                    
+                                    {/* Fallback - shows on error or if no image */}
+                                    {imageState.error && (
+                                        <div 
+                                            className="game-fallback"
+                                            style={{ 
+                                                backgroundColor: game?.color || '#1674a2'
+                                            }}
+                                        >
+                                            {game?.gameName?.charAt(0).toUpperCase() || '?'}
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                {/* Pulsing Skeleton - shows while loading */}
+                                <div className="skeleton-container">
+                                    {showSkeleton && (
+                                        <div className="game-card-skeleton"></div>
+                                    )}
+                                </div>
                             </div>
-                        ))
-                    ) : (
-                        // No games state - only shown after attempted load
-                        !loading && (
-                            <div className="no-games-message">
-                                <p>No games available</p>
-                                <button 
-                                    onClick={() => loadGames(true)}
-                                    className="retry-button"
-                                >
-                                    Try Again
-                                </button>
-                            </div>
-                        )
+                        );
+                    })
+                ) : (
+                    !loading && (
+                        <div className="no-games-message">
+                            <p>No games available</p>
+                            <button 
+                                onClick={() => loadGames(true)}
+                                className="retry-button"
+                            >
+                                Try Again
+                            </button>
+                        </div>
                     )
                 )}
             </div>
@@ -247,7 +402,7 @@ const GameLibrary = () => {
             )}
             
             <div className='promo-footer'>
-                <a className='site-link' target='blank' href='https://daretoconnectgames.com/'>
+                <a className='site-link' target='blank' rel='noopener noreferrer' href='https://daretoconnectgames.com/'>
                     www.daretoconnectgames.com
                 </a>
             </div>

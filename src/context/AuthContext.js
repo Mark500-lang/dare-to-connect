@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import authService from '../services/authService';
 import gameService from '../services/gameService';
+import { Snackbar, Alert } from '@mui/material';
 
 const AuthContext = createContext();
 
@@ -18,6 +19,7 @@ export const AuthProvider = ({ children }) => {
     const [subscription, setSubscription] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [logoutSuccess, setLogoutSuccess] = useState(false);
 
     useEffect(() => {
         initializeAuth();
@@ -119,6 +121,43 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const updateProfile = async (profileData) => {
+        setLoading(true);
+        setError(null);
+        
+        try {
+            const result = await authService.updateProfile(profileData);
+            
+            // Refresh user data
+            const updatedUser = await authService.getProfile();
+            setUser(updatedUser);
+            
+            return result;
+        } catch (err) {
+            console.error('Profile update error:', err);
+            setError(err.message);
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const changePassword = async (currentPassword, newPassword) => {
+        setLoading(true);
+        setError(null);
+        
+        try {
+            const result = await authService.changePassword(currentPassword, newPassword);
+            return result;
+        } catch (err) {
+            console.error('Password change error:', err);
+            setError(err.message);
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const logout = () => {
         authService.logout();
         gameService.clearCache();
@@ -126,6 +165,12 @@ export const AuthProvider = ({ children }) => {
         setGames([]);
         setSubscription(null);
         setError(null);
+        setLogoutSuccess(true); // Show success message
+        
+        // Auto-hide success message after 3 seconds
+        setTimeout(() => {
+            setLogoutSuccess(false);
+        }, 3000);
     };
 
     const value = {
@@ -139,12 +184,31 @@ export const AuthProvider = ({ children }) => {
         forgotPassword,
         logout,
         refreshGames,
-        isAuthenticated: authService.isAuthenticated()
+        updateProfile,
+        changePassword,
+        isAuthenticated: authService.isAuthenticated(),
+        logoutSuccess,
+        setLogoutSuccess
     };
 
     return (
         <AuthContext.Provider value={value}>
             {children}
+            {/* Logout Success Snackbar */}
+            <Snackbar
+                open={logoutSuccess}
+                autoHideDuration={3000}
+                onClose={() => setLogoutSuccess(false)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert 
+                    severity="success" 
+                    onClose={() => setLogoutSuccess(false)}
+                    sx={{ width: '100%' }}
+                >
+                    Logout successful!
+                </Alert>
+            </Snackbar>
         </AuthContext.Provider>
     );
 };
