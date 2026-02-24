@@ -48,10 +48,11 @@ workflows:
         script: |
           set -ex
           echo "=== Installing Node Modules ==="
-          npm ci
           
-          echo "=== Installing RevenueCat for IAP ==="
-          npm install @revenuecat/purchases-capacitor
+          # Clean install with aligned versions
+          rm -rf node_modules package-lock.json
+          npm install @revenuecat/purchases-capacitor@12.1.1 @revenuecat/purchases-capacitor-ui@12.1.1 --save-exact
+          npm ci
           
           echo "=== Installing missing Babel plugin ==="
           npm install --save-dev @babel/plugin-proposal-private-property-in-object
@@ -62,8 +63,17 @@ workflows:
           echo "=== Verifying RevenueCat installation ==="
           if [ -d "node_modules/@revenuecat/purchases-capacitor" ]; then
             echo "✅ @revenuecat/purchases-capacitor installed successfully"
+            echo "Version: $(node -p "require('@revenuecat/purchases-capacitor/package.json').version")"
           else
             echo "❌ @revenuecat/purchases-capacitor not found in node_modules"
+            exit 1
+          fi
+          
+          if [ -d "node_modules/@revenuecat/purchases-capacitor-ui" ]; then
+            echo "✅ @revenuecat/purchases-capacitor-ui installed successfully"
+            echo "Version: $(node -p "require('@revenuecat/purchases-capacitor-ui/package.json').version")"
+          else
+            echo "❌ @revenuecat/purchases-capacitor-ui not found in node_modules"
             exit 1
           fi
 
@@ -84,11 +94,20 @@ workflows:
           
           echo "✅ React build completed successfully"
 
-      # PHASE 4: CAPACITOR SYNC WITH DEPLOYMENT TARGET FIX
+      # PHASE 4: CAPACITOR SYNC WITH VERSION ALIGNMENT
       - name: Sync Capacitor and Configure IAP
         script: |
           set -ex
           echo "=== Syncing Capacitor for iOS ==="
+          
+          # Clean node_modules to ensure clean install
+          rm -rf node_modules package-lock.json
+          
+          # Install specific aligned versions
+          npm install @revenuecat/purchases-capacitor@12.1.1 @revenuecat/purchases-capacitor-ui@12.1.1 --save-exact
+          
+          # Complete all other installations
+          npm ci
           
           # Only add iOS platform if it doesn't exist
           if [ ! -d "ios" ]; then
@@ -96,35 +115,21 @@ workflows:
             npx cap add ios
           fi
           
-          # CRITICAL: Update iOS deployment target in project.pbxproj BEFORE pod install
+          # Set minimum iOS deployment target to 15.0
           echo "=== Setting minimum iOS deployment target to 15.0 ==="
           cd ios/App
           
           # Update deployment target in project.pbxproj
           sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g' App.xcodeproj/project.pbxproj
           
-          # Also update any occurrences in Podfile if it exists
-          if [ -f "Podfile" ]; then
-            sed -i '' 's/platform :ios, .*/platform :ios, '\''15.0'\''/g' Podfile
-          fi
-          
           cd ../..
           
-          # Now sync (this will run pod install with correct deployment target)
+          # Sync Capacitor
           npx cap sync ios
           
-          # Post-sync verification: ensure RevenueCat UI is properly configured
+          # Force pod update to resolve dependencies correctly
           cd ios/App
-          if grep -q "platform :ios" Podfile; then
-            echo "✅ iOS deployment target verified in Podfile"
-          else
-            echo "⚠️ Adding platform line to Podfile"
-            echo "platform :ios, '15.0'" | cat - Podfile > temp && mv temp Podfile
-          fi
-          
-          # Force pod install with explicit target
-          pod install --repo-update --deployment
-          
+          pod update PurchasesHybridCommon PurchasesHybridCommonUI --repo-update
           cd ../..
           
           echo "=== Configuring Proper iOS Orientations ==="
