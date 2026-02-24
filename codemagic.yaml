@@ -264,18 +264,18 @@ workflows:
           set -ex
           echo "=== Setting Up Signing ==="
           cd ios/App
-          
-          # Import certificates
+
+          # Decode certificate and profile
           echo "$CERTIFICATE" | base64 --decode > signing.p12
           echo "$PROVISIONING_PROFILE" | base64 --decode > profile.mobileprovision
-          
-          # Extract provisioning profile info
+
+          # Extract provisioning profile metadata
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< $(security cms -D -i profile.mobileprovision 2>/dev/null))
           TEAM_IDENTIFIER=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' /dev/stdin <<< $(security cms -D -i profile.mobileprovision 2>/dev/null))
-          
+
           echo "Profile UUID: $PROFILE_UUID"
           echo "Team ID: $TEAM_IDENTIFIER"
-          
+
           # Setup keychain
           security create-keychain -p "" build.keychain
           security import signing.p12 -k build.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
@@ -283,31 +283,48 @@ workflows:
           security default-keychain -s build.keychain
           security unlock-keychain -p "" build.keychain
           security set-key-partition-list -S apple-tool:,apple: -k "" build.keychain
-          
+
           # Install provisioning profile
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/"$PROFILE_UUID".mobileprovision
-          
-          # Instead of modifying Pod xcconfigs (which often breaks), use a project override
-          cd App.xcodeproj
-          
-          # Create a signing config file
-          cat > signing.xcconfig << EOF
-          CODE_SIGN_STYLE = Manual
-          DEVELOPMENT_TEAM = $TEAM_IDENTIFIER
-          PROVISIONING_PROFILE_SPECIFIER = $PROFILE_UUID
-          CODE_SIGN_IDENTITY = Apple Distribution
-          CODE_SIGNING_ALLOWED = YES
-          CODE_SIGNING_REQUIRED = YES
-          EOF
-          
-          # Update project to use this config
-          cd ..
-          
-          # Use xcodebuild to set the provisioning profile (more reliable than sed)
-          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" DEVELOPMENT_TEAM="$TEAM_IDENTIFIER" CODE_SIGN_STYLE=Manual
-          
+
+          # FIX 1: Update the bundle ID in the Xcode project pbxproj
+          # This is what Xcode actually uses — Info.plist alone is not enough
+          sed -i '' \
+            "s/PRODUCT_BUNDLE_IDENTIFIER = com\.yourcompany\.daretoconnect/PRODUCT_BUNDLE_IDENTIFIER = daretoconnect.app.mobile/g" \
+            App.xcodeproj/project.pbxproj
+
+          # Also catch any other placeholder patterns just in case
+          sed -i '' \
+            "s/PRODUCT_BUNDLE_IDENTIFIER = com\.example\.[^;]*/PRODUCT_BUNDLE_IDENTIFIER = daretoconnect.app.mobile/g" \
+            App.xcodeproj/project.pbxproj
+
+          # Verify the bundle ID was updated
+          if grep -q "daretoconnect.app.mobile" App.xcodeproj/project.pbxproj; then
+            echo "✅ Bundle ID updated in pbxproj"
+          else
+            echo "❌ Bundle ID update failed - checking current value:"
+            grep "PRODUCT_BUNDLE_IDENTIFIER" App.xcodeproj/project.pbxproj
+            exit 1
+          fi
+
+          # FIX 2: Set CODE_SIGN_IDENTITY to Distribution (not Development)
+          sed -i '' \
+            's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = "iPhone Distribution"/g' \
+            App.xcodeproj/project.pbxproj
+          sed -i '' \
+            's/CODE_SIGN_IDENTITY = "iOS Developer"/CODE_SIGN_IDENTITY = "iPhone Distribution"/g' \
+            App.xcodeproj/project.pbxproj
+
+          # Set manual signing in the pbxproj
+          sed -i '' \
+            's/CODE_SIGN_STYLE = Automatic/CODE_SIGN_STYLE = Manual/g' \
+            App.xcodeproj/project.pbxproj
+
+          # Export for use in later steps
           echo "PROFILE_UUID=$PROFILE_UUID" >> $CM_ENV
+          echo "TEAM_IDENTIFIER=$TEAM_IDENTIFIER" >> $CM_ENV
+
           echo "✅ Signing configuration complete"
 
       # PHASE 9: BUILD CONFIGURATION WITH VERSION INCREMENT
@@ -413,22 +430,28 @@ workflows:
         script: |
           set -ex
           cd ios/App
-          
+
           echo "=== Building Archive ==="
           rm -rf build/*
-          
+
           xcodebuild \
             -workspace App.xcworkspace \
             -scheme App \
             -configuration Release \
             -archivePath build/App.xcarchive \
+            -destination "generic/platform=iOS" \
+            DEVELOPMENT_TEAM="$TEAM_IDENTIFIER" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="iPhone Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" \
+            PRODUCT_BUNDLE_IDENTIFIER="daretoconnect.app.mobile" \
             clean archive
-          
+
           if [ ! -d "build/App.xcarchive" ]; then
             echo "❌ Archive failed"
             exit 1
           fi
-          
+
           echo "✅ Archive created successfully"
 
       # PHASE 13: EXPORT IPA
