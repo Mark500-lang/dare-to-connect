@@ -197,6 +197,12 @@ workflows:
                 config.build_settings['ENABLE_BITCODE'] = 'NO'
                 config.build_settings['SWIFT_VERSION'] = '5.0'
                 config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'YES'
+                
+                # CRITICAL: Pod targets are static libs - they must NOT have provisioning profiles
+                config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+                config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
+                config.build_settings['CODE_SIGN_IDENTITY'] = ''
+                config.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = ''
               end
             end
           end
@@ -325,6 +331,28 @@ workflows:
           echo "PROFILE_UUID=$PROFILE_UUID" >> $CM_ENV
           echo "TEAM_IDENTIFIER=$TEAM_IDENTIFIER" >> $CM_ENV
 
+          # Clear provisioning profile from all Pod targets in Pods.xcodeproj
+          # Pod targets are static libraries and cannot accept provisioning profiles
+          /usr/libexec/PlistBuddy 2>/dev/null || true
+          find Pods -name "*.xcconfig" | xargs sed -i '' \
+            '/PROVISIONING_PROFILE/d' 2>/dev/null || true
+
+          # Use ruby to patch Pods.xcodeproj build settings directly  
+          ruby - <<'RUBY'
+          require 'xcodeproj'
+          project = Xcodeproj::Project.open('Pods/Pods.xcodeproj')
+          project.targets.each do |target|
+            target.build_configurations.each do |config|
+              config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+              config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
+              config.build_settings['CODE_SIGN_IDENTITY'] = ''
+              config.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = ''
+            end
+          end
+          project.save
+          RUBY
+
+          echo "✅ Pod targets signing cleared"
           echo "✅ Signing configuration complete"
 
       # PHASE 9: BUILD CONFIGURATION WITH VERSION INCREMENT
@@ -432,8 +460,8 @@ workflows:
           cd ios/App
 
           echo "=== Building Archive ==="
-          rm -rf build/*
-
+          mkdir -p build
+          
           xcodebuild \
             -workspace App.xcworkspace \
             -scheme App \
@@ -443,7 +471,6 @@ workflows:
             DEVELOPMENT_TEAM="$TEAM_IDENTIFIER" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="iPhone Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" \
             PRODUCT_BUNDLE_IDENTIFIER="daretoconnect.app.mobile" \
             clean archive
 
