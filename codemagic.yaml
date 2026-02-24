@@ -115,21 +115,28 @@ workflows:
           echo "=== Creating clean Podfile with iOS 15.0 target ==="
           cd ios/App
           
-          # Remove any existing pod files
+          # Completely clean everything
           rm -rf Pods Podfile.lock
           rm -f Podfile
           
-          # Create Podfile with correct syntax
-          cat > Podfile << 'EOF'
+          # Clear CocoaPods cache
+          pod cache clean --all
+          
+          # Get the exact podspec name from the file
+          UI_PODSPEC_NAME=$(basename $(ls ../../node_modules/@revenuecat/purchases-capacitor-ui/*.podspec | head -1) .podspec)
+          echo "Found UI podspec name: $UI_PODSPEC_NAME"
+          
+          # Create Podfile with the exact podspec name
+          cat > Podfile << EOF
           platform :ios, '15.0'
           use_frameworks!
           
           install! 'cocoapods', :deterministic_uuids => false, :integrate_targets => true
           
           target 'App' do
-            # RevenueCat pods
+            # RevenueCat pods - using exact podspec names
             pod 'RevenuecatPurchasesCapacitor', :path => '../../node_modules/@revenuecat/purchases-capacitor'
-            pod 'RevenuecatPurchasesCapacitorUI', :path => '../../node_modules/@revenuecat/purchases-capacitor-ui'
+            pod '$UI_PODSPEC_NAME', :path => '../../node_modules/@revenuecat/purchases-capacitor-ui'
             
             # Capacitor core
             pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
@@ -186,8 +193,8 @@ workflows:
           pod install --repo-update
           
           # Verify RevenueCat UI was installed
-          if grep -q "RevenuecatPurchasesCapacitorUI" Podfile.lock; then
-            echo "✅ RevenueCat UI successfully installed"
+          if grep -q "$UI_PODSPEC_NAME" Podfile.lock; then
+            echo "✅ RevenueCat UI ($UI_PODSPEC_NAME) successfully installed"
           else
             echo "❌ RevenueCat UI not found in Podfile.lock"
             exit 1
