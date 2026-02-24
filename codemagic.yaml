@@ -108,28 +108,26 @@ workflows:
             npx cap add ios
           fi
           
-          # Copy web assets only - NO plugin updates that trigger pod install
+          # Copy web assets only
           echo "=== Copying web assets ==="
           npx cap copy ios
           
-          # MANUALLY create and configure the Podfile from scratch
           echo "=== Creating clean Podfile with iOS 15.0 target ==="
           cd ios/App
           
-          # Remove any existing pod files to start fresh
+          # Remove any existing pod files
           rm -rf Pods Podfile.lock
           rm -f Podfile
           
-          # Create new Podfile with correct iOS version and CORRECT CASE for RevenueCatUI
+          # Create Podfile with correct syntax
           cat > Podfile << 'EOF'
           platform :ios, '15.0'
           use_frameworks!
           
-          # Prevent Capacitor from running pod install automatically
           install! 'cocoapods', :deterministic_uuids => false, :integrate_targets => true
           
           target 'App' do
-            # RevenueCat pods (explicitly added first with CORRECT CASE - UI is uppercase)
+            # RevenueCat pods
             pod 'RevenuecatPurchasesCapacitor', :path => '../../node_modules/@revenuecat/purchases-capacitor'
             pod 'RevenuecatPurchasesCapacitorUI', :path => '../../node_modules/@revenuecat/purchases-capacitor-ui'
             
@@ -140,28 +138,32 @@ workflows:
           
           # Add Capacitor plugins
           echo "" >> Podfile
-          echo "# Capacitor plugins" >> Podfile
+          echo "  # Capacitor plugins" >> Podfile
           
-          # Add each Capacitor plugin with its correct path
-          for plugin in ../../node_modules/@capacitor/*; do
-            if [ -d "$plugin" ]; then
-              plugin_name=$(basename "$plugin")
-              # Skip non-iOS plugins
-              if [ "$plugin_name" != "android" ] && [ "$plugin_name" != "cli" ] && [ "$plugin_name" != "core" ]; then
-                # Look for podspec files
-                podspec_files=$(ls "$plugin"/*.podspec 2>/dev/null || true)
-                if [ -n "$podspec_files" ]; then
-                  for podspec in $podspec_files; do
-                    pod_name=$(basename "$podspec" .podspec)
-                    echo "pod '$pod_name', :path => '../../node_modules/@capacitor/$plugin_name'" >> Podfile
+          # Add each Capacitor plugin
+          if [ -d "../../node_modules/@capacitor" ]; then
+            for plugin in ../../node_modules/@capacitor/*; do
+              if [ -d "$plugin" ]; then
+                plugin_name=$(basename "$plugin")
+                # Skip non-iOS plugins
+                if [ "$plugin_name" != "android" ] && [ "$plugin_name" != "cli" ] && [ "$plugin_name" != "core" ]; then
+                  # Look for podspec files
+                  for podspec in "$plugin"/*.podspec; do
+                    if [ -f "$podspec" ]; then
+                      pod_name=$(basename "$podspec" .podspec)
+                      # Skip Capacitor and CapacitorCordova as they're already added
+                      if [ "$pod_name" != "Capacitor" ] && [ "$pod_name" != "CapacitorCordova" ]; then
+                        echo "  pod '$pod_name', :path => '../../node_modules/@capacitor/$plugin_name'" >> Podfile
+                      fi
+                    fi
                   done
                 fi
               fi
-            fi
-          done
+            done
+          fi
           
           # Close the target and add post_install hook
-          cat >> Podfile << 'EOF
+          cat >> Podfile << 'EOF'
           end
           
           post_install do |installer|
@@ -176,26 +178,24 @@ workflows:
           end
           EOF
           
-          # Debug: Show the Podfile content
-          echo "=== Generated Podfile Content ==="
+          # Show the generated Podfile
+          echo "=== Generated Podfile ==="
           cat Podfile
           
-          echo "=== Running clean pod install with iOS 15.0 target ==="
-          pod install --repo-update --clean-install
+          echo "=== Running pod install ==="
+          pod install --repo-update
           
-          # Verify RevenueCat UI was installed correctly
+          # Verify RevenueCat UI was installed
           if grep -q "RevenuecatPurchasesCapacitorUI" Podfile.lock; then
-            echo "✅ RevenueCat UI successfully installed with iOS 15.0 target"
+            echo "✅ RevenueCat UI successfully installed"
           else
             echo "❌ RevenueCat UI not found in Podfile.lock"
-            echo "=== Podfile.lock content ==="
-            cat Podfile.lock
             exit 1
           fi
           
           cd ../..
           
-          echo "✅ iOS dependencies configured successfully with iOS 15.0"
+          echo "✅ iOS dependencies configured successfully"
 
       # PHASE 5: IOS PROJECT CONFIGURATION (SIMPLIFIED)
       - name: Configure iOS Project
