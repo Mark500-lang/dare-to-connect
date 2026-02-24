@@ -129,7 +129,7 @@ workflows:
           install! 'cocoapods', :deterministic_uuids => false, :integrate_targets => true
           
           target 'App' do
-            # RevenueCat pods (explicitly added first)
+            # RevenueCat pods (explicitly added first with CORRECT case)
             pod 'RevenuecatPurchasesCapacitor', :path => '../../node_modules/@revenuecat/purchases-capacitor'
             pod 'RevenuecatPurchasesCapacitorUI', :path => '../../node_modules/@revenuecat/purchases-capacitor-ui'
             
@@ -150,29 +150,27 @@ workflows:
           end
           EOF
           
-          # Now manually add all Capacitor plugin pods with CORRECT paths
+          # Add Capacitor plugins
           echo "" >> Podfile
           echo "# Capacitor plugins" >> Podfile
           
-          # Find all Capacitor plugin pods and add them with their specific paths
-          if [ -d "../../node_modules/@capacitor" ]; then
-            for plugin in ../../node_modules/@capacitor/*; do
-              if [ -d "$plugin" ] && [ -f "$plugin/*.podspec" ] || [ -f "$plugin/$plugin.podspec" ]; then
-                # Extract plugin name
-                plugin_name=$(basename "$plugin")
-                
-                # Skip Capacitor and CapacitorCordova as they're already added
-                if [ "$plugin_name" != "ios" ] && [ "$plugin_name" != "cli" ]; then
-                  # Check if podspec exists in the plugin directory
-                  if ls "$plugin"/*.podspec 1> /dev/null 2>&1; then
-                    podspec_path=$(ls "$plugin"/*.podspec | head -1)
-                    pod_name=$(basename "$podspec_path" .podspec)
+          # Add each Capacitor plugin with its correct path
+          for plugin in ../../node_modules/@capacitor/*; do
+            if [ -d "$plugin" ]; then
+              plugin_name=$(basename "$plugin")
+              # Skip non-iOS plugins
+              if [ "$plugin_name" != "android" ] && [ "$plugin_name" != "cli" ] && [ "$plugin_name" != "core" ]; then
+                # Look for podspec files
+                podspec_files=$(ls "$plugin"/*.podspec 2>/dev/null || true)
+                if [ -n "$podspec_files" ]; then
+                  for podspec in $podspec_files; do
+                    pod_name=$(basename "$podspec" .podspec)
                     echo "pod '$pod_name', :path => '../../node_modules/@capacitor/$plugin_name'" >> Podfile
-                  fi
+                  done
                 fi
               fi
-            done
-          fi
+            fi
+          done
           
           echo "=== Running clean pod install with iOS 15.0 target ==="
           pod install --repo-update --clean-install
