@@ -127,8 +127,8 @@ workflows:
           pod setup
           
           # Get the exact podspec names
-          RC_PODSPEC=$(grep "^\s*s\.name\s*=" ../../node_modules/@revenuecat/purchases-capacitor/*.podspec | head -1 | sed "s/.*=\s*['\"]//;s/['\"].*//")
-          UI_PODSPEC=$(grep "^\s*s\.name\s*=" ../../node_modules/@revenuecat/purchases-capacitor-ui/*.podspec | head -1 | sed "s/.*=\s*['\"]//;s/['\"].*//")
+          RC_PODSPEC="RevenuecatPurchasesCapacitor"
+          UI_PODSPEC="RevenuecatPurchasesCapacitorUi"
           
           echo "RevenueCat pod: $RC_PODSPEC"
           echo "RevenueCat UI pod: $UI_PODSPEC"
