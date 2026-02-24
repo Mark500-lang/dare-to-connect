@@ -100,108 +100,45 @@ workflows:
       - name: Sync Capacitor and Configure IAP
         script: |
           set -ex
-          echo "=== Syncing Capacitor for iOS ==="
           
-          # Only add iOS platform if it doesn't exist
           if [ ! -d "ios" ]; then
-            echo "=== Adding iOS platform ==="
             npx cap add ios
           fi
           
-          # Copy web assets only
-          echo "=== Copying web assets ==="
           npx cap copy ios
           
-          echo "=== Creating clean Podfile with iOS 15.0 target ==="
           cd ios/App
-          
-          # COMPLETE NUCLEAR CLEAN
-          echo "=== Performing nuclear clean ==="
-          rm -rf Pods Podfile.lock
-          rm -f Podfile
-          
-          # Clear all CocoaPods caches
+          rm -rf Pods Podfile.lock Podfile
           rm -rf ~/.cocoapods/repos/trunk/
           pod cache clean --all
           pod repo remove trunk || true
           pod setup
           
-          # Get the exact podspec names
-          RC_PODSPEC="RevenuecatPurchasesCapacitor"
-          UI_PODSPEC="RevenuecatPurchasesCapacitorUi"
-          
-          echo "RevenueCat pod: $RC_PODSPEC"
-          echo "RevenueCat UI pod: $UI_PODSPEC"
-          
-          # Create minimal Podfile first
-          cat > Podfile << EOF
+          cat > Podfile << 'EOF'
           platform :ios, '15.0'
-          use_frameworks!
-          
-          target 'App' do
-            # Only RevenueCat pods first
-            pod '$RC_PODSPEC', :path => '../../node_modules/@revenuecat/purchases-capacitor'
-            pod '$UI_PODSPEC', :path => '../../node_modules/@revenuecat/purchases-capacitor-ui'
-          end
-          EOF
-          
-          echo "=== Installing RevenueCat pods first ==="
-          pod install --repo-update
-          
-          # Now add the rest of the pods
-          cat > Podfile << EOF
-          platform :ios, '15.0'
-          use_frameworks!
-          
+          use_frameworks! :linkage => :static
+
           install! 'cocoapods', :deterministic_uuids => false, :integrate_targets => true
-          
+
           target 'App' do
-            # RevenueCat pods
-            pod '$RC_PODSPEC', :path => '../../node_modules/@revenuecat/purchases-capacitor'
-            pod '$UI_PODSPEC', :path => '../../node_modules/@revenuecat/purchases-capacitor-ui'
-            
-            # Capacitor core
+            pod 'RevenuecatPurchasesCapacitor', :path => '../../node_modules/@revenuecat/purchases-capacitor'
+            pod 'RevenuecatPurchasesCapacitorUi', :path => '../../node_modules/@revenuecat/purchases-capacitor-ui'
             pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
             pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
-          EOF
-          
-          # Add Capacitor plugins
-          echo "" >> Podfile
-          echo "  # Capacitor plugins" >> Podfile
-          
-          # Add each Capacitor plugin
-          if [ -d "../../node_modules/@capacitor" ]; then
-            for plugin in ../../node_modules/@capacitor/*; do
-              if [ -d "$plugin" ]; then
-                plugin_name=$(basename "$plugin")
-                if [ "$plugin_name" != "android" ] && [ "$plugin_name" != "cli" ] && [ "$plugin_name" != "core" ] && [ "$plugin_name" != "ios" ]; then
-                  for podspec in "$plugin"/*.podspec; do
-                    if [ -f "$podspec" ]; then
-                      pod_name=$(basename "$podspec" .podspec)
-                      echo "  pod '$pod_name', :path => '../../node_modules/@capacitor/$plugin_name'" >> Podfile
-                    fi
-                  done
-                fi
-              fi
-            done
-          fi
-          
-          # Close the target and add post_install hook
-          cat >> Podfile << 'EOF'
+            pod 'CapacitorApp', :path => '../../node_modules/@capacitor/app'
+            pod 'CapacitorHaptics', :path => '../../node_modules/@capacitor/haptics'
+            pod 'CapacitorKeyboard', :path => '../../node_modules/@capacitor/keyboard'
+            pod 'CapacitorStatusBar', :path => '../../node_modules/@capacitor/status-bar'
           end
-          
+
           post_install do |installer|
             installer.pods_project.targets.each do |target|
               target.build_configurations.each do |config|
                 config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
                 config.build_settings['ENABLE_BITCODE'] = 'NO'
                 config.build_settings['SWIFT_VERSION'] = '5.0'
-                config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'YES'
                 config.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = ''
                 config.build_settings['CODE_SIGN_IDENTITY'] = ''
-                
-                # Only set CODE_SIGNING_ALLOWED = NO for non-bundle targets
-                # Bundle targets (RevenueCat-RevenueCat, etc) still need to compile their Swift binary
                 unless target.product_type == "com.apple.product-type.bundle"
                   config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
                   config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
@@ -211,19 +148,16 @@ workflows:
           end
           EOF
           
-          echo "=== Installing all pods ==="
-          pod install
+          pod install --repo-update
           
-          # Verify RevenueCat UI was installed
-          if grep -q "$UI_PODSPEC" Podfile.lock; then
-            echo "✅ RevenueCat UI ($UI_PODSPEC) successfully installed"
+          if grep -q "RevenuecatPurchasesCapacitorUi" Podfile.lock; then
+            echo "✅ RevenueCat UI successfully installed"
           else
             echo "❌ RevenueCat UI not found in Podfile.lock"
             exit 1
           fi
           
           cd ../..
-          
           echo "✅ iOS dependencies configured successfully"
 
       # PHASE 7: CREATE XCODE SCHEME
