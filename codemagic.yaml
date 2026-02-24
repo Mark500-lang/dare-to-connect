@@ -52,7 +52,9 @@ workflows:
           # Clean install with aligned versions
           rm -rf node_modules package-lock.json
           npm install @revenuecat/purchases-capacitor@12.1.1 @revenuecat/purchases-capacitor-ui@12.1.1 --save-exact
-          npm ci
+          
+          # Use npm install instead of npm ci since we just regenerated package-lock.json
+          npm install
           
           echo "=== Installing missing Babel plugin ==="
           npm install --save-dev @babel/plugin-proposal-private-property-in-object
@@ -99,15 +101,6 @@ workflows:
         script: |
           set -ex
           echo "=== Syncing Capacitor for iOS ==="
-          
-          # Clean node_modules to ensure clean install
-          rm -rf node_modules package-lock.json
-          
-          # Install specific aligned versions
-          npm install @revenuecat/purchases-capacitor@12.1.1 @revenuecat/purchases-capacitor-ui@12.1.1 --save-exact
-          
-          # Complete all other installations
-          npm ci
           
           # Only add iOS platform if it doesn't exist
           if [ ! -d "ios" ]; then
