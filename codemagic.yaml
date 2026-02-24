@@ -7,7 +7,7 @@ workflows:
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
-        NODE_VERSION: "20.x"
+        NODE_VERSION: "22.x"
         COCOAPODS_VERSION: "1.15.2"
         DEVELOPMENT_TEAM: "H9A4H444G4"  # Replace with your actual team ID
         BUNDLE_ID: "daretoconnect.app.mobile"
@@ -15,7 +15,7 @@ workflows:
         DISABLE_ESLINT_PLUGIN: "true"
       groups:
         - DareToConnect
-      node: 20
+      node: 22
       xcode: latest
     cache:
       cache_paths:
@@ -122,105 +122,68 @@ workflows:
           
           echo "✅ Orientation configuration fixed"
 
-      # PHASE 5: IOS PROJECT CONFIGURATION WITH SWIFT SUPPORT FIX
+      # PHASE 5: IOS PROJECT CONFIGURATION (SIMPLIFIED)
       - name: Configure iOS Project
         script: |
           set -ex
           echo "=== Setting up iOS Platform ==="
           cd ios/App
           
-          echo "=== Updating Podfile for Swift Support ==="
-          # Ensure Podfile has proper iOS deployment target for RevenueCat
-          if ! grep -q "platform :ios" Podfile; then
-            # Add platform line if it doesn't exist
-            echo "platform :ios, '15.0'" > temp_podfile
-            cat Podfile >> temp_podfile
-            mv temp_podfile Podfile
-          else
-            # Update existing platform line
-            sed -i.bak "s/platform :ios, .*/platform :ios, '15.0'/g" Podfile
-            rm -f Podfile.bak
-          fi
+          # Create proper Podfile with Swift support
+          cat > Podfile << 'EOF'
+          platform :ios, '15.0'
+          use_frameworks!
           
-          # Add Swift settings without modifying existing post_install hook
-          # Instead, we'll use a script phase or modify project settings later
-          echo "=== Using alternative Swift configuration approach ==="
+          # Disable bitcode for all targets
+          installer = Pod::Installer
           
-          echo "=== Installing CocoaPods ==="
-          pod install --repo-update --clean-install
-          
-          echo "=== Verifying Project Structure ==="
-          if [ -d "Pods" ] && [ -d "App.xcworkspace" ]; then
-            echo "✅ CocoaPods installation verified"
+          target 'App' do
+            # Let Capacitor handle its own pods via the symlink
+            # This ensures RevenueCat is properly linked
             
-            # Verify RevenueCat pod was installed
-            if grep -q "Purchases" Podfile.lock; then
-              echo "✅ RevenueCat Purchases framework in Pods"
-            else
-              echo "⚠️ RevenueCat not in Podfile.lock - checking capacitor integration"
-            fi
-          else
-            echo "❌ CocoaPods installation failed!"
-            exit 1
-          fi
-
-      # PHASE 6: CONFIGURE SWIFT SETTINGS IN XCODE PROJECT
-      - name: Configure Swift Settings
-        script: |
-          set -ex
-          echo "=== Configuring Swift Settings in Xcode Project ==="
-          cd ios/App
+            # Explicitly add RevenueCat to ensure Swift support
+            pod 'Purchases', '~> 5.0'
+          end
           
-          # Configure Swift settings directly in the project file
-          PBXPROJ="App.xcodeproj/project.pbxproj"
+          post_install do |installer|
+            installer.pods_project.targets.each do |target|
+              target.build_configurations.each do |config|
+                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+                config.build_settings['ENABLE_BITCODE'] = 'NO'
+                config.build_settings['SWIFT_VERSION'] = '5.0'
+                config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'YES'
+                
+                # Critical for RevenueCat: Ensure Swift is properly linked
+                config.build_settings['LD_RUNPATH_SEARCH_PATHS'] = [
+                  '$(inherited)',
+                  '@executable_path/Frameworks'
+                ]
+              end
+            end
+          end
+          EOF
           
-          # Add Swift version and deployment target to project settings
-          echo "=== Adding Swift 5.0 and iOS 15.0 deployment target ==="
+          # Append Capacitor pods
+          echo "" >> Podfile
+          echo "# Capacitor pods (auto-generated)" >> Podfile
           
-          # Create backup
-          cp "$PBXPROJ" "$PBXPROJ.backup"
+          # Find all Capacitor pods
+          find ../../node_modules/@capacitor -name "*.podspec" -maxdepth 2 | while read spec; do
+            pod_name=$(basename "$spec" .podspec)
+            echo "pod '$pod_name', :path => '../../node_modules/@capacitor/ios''" >> Podfile
+          done
           
-          # Add IPHONEOS_DEPLOYMENT_TARGET if not present
-          if ! grep -q "IPHONEOS_DEPLOYMENT_TARGET" "$PBXPROJ"; then
-            sed -i.bak '/ASSETCATALOG_COMPILER_APPICON_NAME/a\
-            IPHONEOS_DEPLOYMENT_TARGET = 15.0;' "$PBXPROJ"
-          else
-            sed -i.bak 's/IPHONEOS_DEPLOYMENT_TARGET = .*/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g' "$PBXPROJ"
-          fi
+          # Find RevenueCat and other plugins
+          find ../../node_modules/@revenuecat -name "*.podspec" -maxdepth 2 | while read spec; do
+            pod_name=$(basename "$spec" .podspec)
+            echo "pod '$pod_name', :path => '../../node_modules/@revenuecat/purchases-capacitor/ios''" >> Podfile
+          done
           
-          # Add Swift version if not present
-          if ! grep -q "SWIFT_VERSION" "$PBXPROJ"; then
-            sed -i.bak '/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/a\
-            SWIFT_VERSION = 5.0;' "$PBXPROJ"
-          else
-            sed -i.bak 's/SWIFT_VERSION = .*/SWIFT_VERSION = 5.0;/g' "$PBXPROJ"
-          fi
+          # Clean install pods
+          pod deintegrate || true
+          pod install --repo-update
           
-          # Add ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES for Swift support
-          if ! grep -q "ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES" "$PBXPROJ"; then
-            sed -i.bak '/SWIFT_VERSION = 5.0;/a\
-            ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;' "$PBXPROJ"
-          fi
-          
-          # Clean up backup files
-          rm -f "$PBXPROJ.bak"
-          
-          echo "✅ Swift settings configured in Xcode project"
-          
-          # Verify the changes
-          echo "=== Verifying Project Settings ==="
-          grep -E "IPHONEOS_DEPLOYMENT_TARGET|SWIFT_VERSION|ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES" "$PBXPROJ" || echo "Settings not found (may be in different build configuration)"
-          
-          # Also update the project.pbxproj for the main target to ensure Swift libraries are embedded
-          echo "=== Ensuring Swift libraries are properly embedded ==="
-          if grep -q "ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES" "$PBXPROJ"; then
-            echo "✅ ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES is set"
-          else
-            # Add it to the main project build settings
-            sed -i.bak '/Build Settings/a\
-            ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;' "$PBXPROJ"
-            rm -f "$PBXPROJ.bak"
-          fi
+          echo "✅ iOS project configured with Swift 5.0 support"
 
       # PHASE 7: CREATE XCODE SCHEME
       - name: Create Xcode Scheme
@@ -263,7 +226,7 @@ workflows:
           
           echo "✅ Xcode scheme created"
 
-      # PHASE 8: CODE SIGNING SETUP
+      # PHASE 8: CODE SIGNING SETUP (IMPROVED)
       - name: Configure Signing
         script: |
           set -ex
@@ -274,11 +237,14 @@ workflows:
           echo "$CERTIFICATE" | base64 --decode > signing.p12
           echo "$PROVISIONING_PROFILE" | base64 --decode > profile.mobileprovision
           
-          # Extract provisioning profile UUID
-          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< $(security cms -D -i profile.mobileprovision))
-          [ -n "$PROFILE_UUID" ] || { echo "❌ Failed to extract profile UUID"; exit 1; }
+          # Extract provisioning profile info
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< $(security cms -D -i profile.mobileprovision 2>/dev/null))
+          TEAM_IDENTIFIER=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' /dev/stdin <<< $(security cms -D -i profile.mobileprovision 2>/dev/null))
           
-          # Set up keychain
+          echo "Profile UUID: $PROFILE_UUID"
+          echo "Team ID: $TEAM_IDENTIFIER"
+          
+          # Setup keychain
           security create-keychain -p "" build.keychain
           security import signing.p12 -k build.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security list-keychains -s build.keychain
@@ -290,37 +256,24 @@ workflows:
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/"$PROFILE_UUID".mobileprovision
           
-          # Create pod signing override file
-          echo "=== Configuring Pod Signing ==="
-          cat > disable-pod-signing.xcconfig << EOF
-          CODE_SIGNING_ALLOWED = NO
-          CODE_SIGNING_REQUIRED = NO
-          PROVISIONING_PROFILE_SPECIFIER = ""
-          DEVELOPMENT_TEAM = ""
+          # Instead of modifying Pod xcconfigs (which often breaks), use a project override
+          cd App.xcodeproj
+          
+          # Create a signing config file
+          cat > signing.xcconfig << EOF
+          CODE_SIGN_STYLE = Manual
+          DEVELOPMENT_TEAM = $TEAM_IDENTIFIER
+          PROVISIONING_PROFILE_SPECIFIER = $PROFILE_UUID
+          CODE_SIGN_IDENTITY = Apple Distribution
+          CODE_SIGNING_ALLOWED = YES
+          CODE_SIGNING_REQUIRED = YES
           EOF
           
-          # Update Pods xcconfig files with absolute path
-          find "Pods/Target Support Files" -name "*.*cconfig" | while read file; do
-            echo "#include \"$(pwd)/disable-pod-signing.xcconfig\"" >> "$file"
-          done
+          # Update project to use this config
+          cd ..
           
-          # Convert to manual signing in project file
-          echo "=== Updating Project Settings ==="
-          PBXPROJ="App.xcodeproj/project.pbxproj"
-          cp "$PBXPROJ" "$PBXPROJ.bak"
-          
-          # Remove any automatic signing settings
-          sed -i '' '/PROVISIONING_PROFILE_SPECIFIER/d' "$PBXPROJ"
-          sed -i '' '/CODE_SIGN_STYLE/d' "$PBXPROJ"
-          sed -i '' '/DEVELOPMENT_TEAM/d' "$PBXPROJ"
-          
-          # Add manual signing settings
-          sed -i '' "/buildSettings = {/a \\
-              CODE_SIGN_STYLE = Manual; \\
-              PROVISIONING_PROFILE_SPECIFIER = \"$PROFILE_UUID\"; \\
-              DEVELOPMENT_TEAM = $DEVELOPMENT_TEAM; \\
-              CODE_SIGN_IDENTITY = \"Apple Distribution\"; \\
-              " "$PBXPROJ"
+          # Use xcodebuild to set the provisioning profile (more reliable than sed)
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" DEVELOPMENT_TEAM="$TEAM_IDENTIFIER" CODE_SIGN_STYLE=Manual
           
           echo "PROFILE_UUID=$PROFILE_UUID" >> $CM_ENV
           echo "✅ Signing configuration complete"
