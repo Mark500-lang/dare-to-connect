@@ -84,7 +84,7 @@ workflows:
           
           echo "✅ React build completed successfully"
 
-      # PHASE 4: CAPACITOR SYNC (NO IOS RECREATION)
+      # PHASE 4: CAPACITOR SYNC WITH DEPLOYMENT TARGET FIX
       - name: Sync Capacitor and Configure IAP
         script: |
           set -ex
@@ -96,8 +96,36 @@ workflows:
             npx cap add ios
           fi
           
-          # Sync RevenueCat plugin (this preserves existing icons)
+          # CRITICAL: Update iOS deployment target in project.pbxproj BEFORE pod install
+          echo "=== Setting minimum iOS deployment target to 15.0 ==="
+          cd ios/App
+          
+          # Update deployment target in project.pbxproj
+          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g' App.xcodeproj/project.pbxproj
+          
+          # Also update any occurrences in Podfile if it exists
+          if [ -f "Podfile" ]; then
+            sed -i '' 's/platform :ios, .*/platform :ios, '\''15.0'\''/g' Podfile
+          fi
+          
+          cd ../..
+          
+          # Now sync (this will run pod install with correct deployment target)
           npx cap sync ios
+          
+          # Post-sync verification: ensure RevenueCat UI is properly configured
+          cd ios/App
+          if grep -q "platform :ios" Podfile; then
+            echo "✅ iOS deployment target verified in Podfile"
+          else
+            echo "⚠️ Adding platform line to Podfile"
+            echo "platform :ios, '15.0'" | cat - Podfile > temp && mv temp Podfile
+          fi
+          
+          # Force pod install with explicit target
+          pod install --repo-update --deployment
+          
+          cd ../..
           
           echo "=== Configuring Proper iOS Orientations ==="
           cd ios/App/App
@@ -110,7 +138,7 @@ workflows:
           
           # Configure for iPhone (Landscape only)
           /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations array" "$PLIST_PATH"
-          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations:0 string UIInterfaceOrientationLandscapeLeft" "$PList_PATH"
+          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations:0 string UIInterfaceOrientationLandscapeLeft" "$PLIST_PATH"
           /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations:1 string UIInterfaceOrientationLandscapeRight" "$PLIST_PATH"
           
           # Configure for iPad (ALL orientations required for multitasking)
