@@ -129,12 +129,13 @@ workflows:
           install! 'cocoapods', :deterministic_uuids => false, :integrate_targets => true
           
           target 'App' do
-            # First, add RevenueCat pods explicitly (they need iOS 15.0)
+            # RevenueCat pods (explicitly added first)
             pod 'RevenuecatPurchasesCapacitor', :path => '../../node_modules/@revenuecat/purchases-capacitor'
-            pod 'RevenuecatPurchasesCapacitorUi', :path => '../../node_modules/@revenuecat/purchases-capacitor-ui'
+            pod 'RevenuecatPurchasesCapacitorUI', :path => '../../node_modules/@revenuecat/purchases-capacitor-ui'
             
-            # Let Capacitor handle its own pods via plugin discovery
-            # But we need to ensure they're included
+            # Capacitor core
+            pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
+            pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
           end
           
           post_install do |installer|
@@ -149,31 +150,35 @@ workflows:
           end
           EOF
           
-          # Now manually add all Capacitor plugins to Podfile
+          # Now manually add all Capacitor plugin pods with CORRECT paths
           echo "" >> Podfile
-          echo "# Capacitor plugins discovered from node_modules" >> Podfile
+          echo "# Capacitor plugins" >> Podfile
           
-          # Find all Capacitor core pods
+          # Find all Capacitor plugin pods and add them with their specific paths
           if [ -d "../../node_modules/@capacitor" ]; then
-            find ../../node_modules/@capacitor -name "*.podspec" -maxdepth 2 | while read spec; do
-              pod_name=$(basename "$spec" .podspec)
-              echo "pod '$pod_name', :path => '../../node_modules/@capacitor/ios'" >> Podfile
+            for plugin in ../../node_modules/@capacitor/*; do
+              if [ -d "$plugin" ] && [ -f "$plugin/*.podspec" ] || [ -f "$plugin/$plugin.podspec" ]; then
+                # Extract plugin name
+                plugin_name=$(basename "$plugin")
+                
+                # Skip Capacitor and CapacitorCordova as they're already added
+                if [ "$plugin_name" != "ios" ] && [ "$plugin_name" != "cli" ]; then
+                  # Check if podspec exists in the plugin directory
+                  if ls "$plugin"/*.podspec 1> /dev/null 2>&1; then
+                    podspec_path=$(ls "$plugin"/*.podspec | head -1)
+                    pod_name=$(basename "$podspec_path" .podspec)
+                    echo "pod '$pod_name', :path => '../../node_modules/@capacitor/$plugin_name'" >> Podfile
+                  fi
+                fi
+              fi
             done
           fi
-          
-          # Find all other plugin pods (including any other RevenueCat or third-party)
-          find ../../node_modules -name "*.podspec" -maxdepth 3 | grep -v "@capacitor" | while read spec; do
-            pod_name=$(basename "$spec" .podspec)
-            pod_dir=$(dirname "$spec")
-            relative_path="../../node_modules/${pod_dir#../../node_modules/}"
-            echo "pod '$pod_name', :path => '$relative_path'" >> Podfile
-          done
           
           echo "=== Running clean pod install with iOS 15.0 target ==="
           pod install --repo-update --clean-install
           
           # Verify RevenueCat UI was installed correctly
-          if grep -q "RevenuecatPurchasesCapacitorUi" Podfile.lock; then
+          if grep -q "RevenuecatPurchasesCapacitorUI" Podfile.lock; then
             echo "✅ RevenueCat UI successfully installed with iOS 15.0 target"
           else
             echo "❌ RevenueCat UI not found in Podfile.lock"
