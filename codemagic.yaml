@@ -1,44 +1,40 @@
 workflows:
-  ios-iap-release:
-    name: Dare to Connect iOS IAP Release
+  ios-release:
+    name: Dare to Connect iOS Release Build
     integrations:
-      app_store_connect: codemagic-key 
-    
+      app_store_connect: codemagic-key
     environment:
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
         NODE_VERSION: "20.x"
         COCOAPODS_VERSION: "1.15.2"
-        DEVELOPMENT_TEAM: "H9A4H444G4" 
+        DEVELOPMENT_TEAM: "H9A4H444G4"  # Replace with your actual team ID
         BUNDLE_ID: "daretoconnect.app.mobile"
-        APP_VERSION: "2.3" 
         CI: "false"
         DISABLE_ESLINT_PLUGIN: "true"
-        REVENUECAT_IOS_API_KEY: "${REVENUECAT_IOS_API_KEY}"  # Will be in groups
       groups:
         - DareToConnect
-        - revenuecat_keys  # RevenueCat API keys
       node: 20
       xcode: latest
-
     cache:
       cache_paths:
         - ~/.npm
         - node_modules
         - ios/Pods
-
     triggering:
       events:
         - push
       branch_patterns:
         - pattern: main
           include: true
-        - pattern: release/*
+        - pattern: master
+          include: true
+        - pattern: develop
           include: true
 
     scripts:
-      # PHASE 1: CLEAN WORKSPACE
+      # PHASE 1: CLEAN AND SETUP
       - name: Clean Workspace
         script: |
           echo "=== Cleaning Workspace ==="
@@ -46,21 +42,29 @@ workflows:
           rm -rf ~/Library/Developer/Xcode/DerivedData/*
           rm -rf ios/Pods ios/Podfile.lock
           npm cache clean --force
-          echo "✅ Workspace cleaned"
 
-      # PHASE 2: INSTALL DEPENDENCIES
+      # PHASE 2: DEPENDENCY INSTALLATION
       - name: Install Dependencies
         script: |
           set -ex
           echo "=== Installing Node Modules ==="
-          npm ci || npm install
+          npm ci
           
+          echo "=== Installing RevenueCat for IAP ==="
+          npm install @revenuecat/purchases-capacitor
+          
+          echo "=== Installing missing Babel plugin ==="
+          npm install --save-dev @babel/plugin-proposal-private-property-in-object
+          
+          echo "=== Updating browserslist ==="
+          npx update-browserslist-db@latest
+
           echo "=== Verifying RevenueCat installation ==="
           if [ -d "node_modules/@revenuecat/purchases-capacitor" ]; then
-            echo "✅ @revenuecat/purchases-capacitor installed"
+            echo "✅ @revenuecat/purchases-capacitor installed successfully"
           else
-            echo "Installing RevenueCat..."
-            npm install @revenuecat/purchases-capacitor@12.1.1
+            echo "❌ @revenuecat/purchases-capacitor not found in node_modules"
+            exit 1
           fi
 
       # PHASE 3: BUILD REACT APP
@@ -70,202 +74,457 @@ workflows:
           echo "=== Building React App ==="
           export DISABLE_ESLINT_PLUGIN=true
           export ESLINT_NO_DEV_ERRORS=false
-          export GENERATE_SOURCEMAP=false
           
           npm run build
           
           if [ ! -d "build" ]; then
-            echo "❌ React build failed"
+            echo "❌ React build failed - build directory not found"
             exit 1
           fi
-          echo "✅ React build completed"
+          
+          echo "✅ React build completed successfully"
 
-      # PHASE 4: CAPACITOR SYNC
-      - name: Sync Capacitor
+      # PHASE 4: CAPACITOR SYNC (NO IOS RECREATION)
+      - name: Sync Capacitor and Configure IAP
         script: |
           set -ex
-          echo "=== Syncing Capacitor ==="
+          echo "=== Syncing Capacitor for iOS ==="
           
-          # Add iOS platform if needed
+          # Only add iOS platform if it doesn't exist
           if [ ! -d "ios" ]; then
+            echo "=== Adding iOS platform ==="
             npx cap add ios
           fi
           
-          # Sync everything
+          # Sync RevenueCat plugin (this preserves existing icons)
           npx cap sync ios
           
-          echo "✅ Capacitor sync complete"
-
-      # PHASE 5: CONFIGURE INFO.PLIST FOR IAP
-      - name: Configure IAP in Info.plist
-        script: |
-          set -ex
-          echo "=== Configuring IAP Settings ==="
+          echo "=== Configuring Proper iOS Orientations ==="
           cd ios/App/App
           PLIST_PATH="Info.plist"
           
-          # Add Privacy Policy URL
-          /usr/libexec/PlistBuddy -c "Add :PrivacyPolicyURL string https://www.daretoconnectgames.com/privacy" "$PLIST_PATH" 2>/dev/null || \
-          /usr/libexec/PlistBuddy -c "Set :PrivacyPolicyURL https://www.daretoconnectgames.com/privacy" "$PLIST_PATH"
+          # Remove any existing orientation settings
+          /usr/libexec/PlistBuddy -c "Delete :UISupportedInterfaceOrientations" "$PLIST_PATH" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Delete :UISupportedInterfaceOrientations~ipad" "$PLIST_PATH" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Delete :UISupportedInterfaceOrientations~iphone" "$PLIST_PATH" 2>/dev/null || true
           
-          # Add Terms of Use URL (Apple's standard EULA)
-          /usr/libexec/PlistBuddy -c "Add :TermsOfUseURL string https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" "$PLIST_PATH" 2>/dev/null || \
-          /usr/libexec/PlistBuddy -c "Set :TermsOfUseURL https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" "$PLIST_PATH"
+          # Configure for iPhone (Landscape only)
+          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations array" "$PLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations:0 string UIInterfaceOrientationLandscapeLeft" "$PList_PATH"
+          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations:1 string UIInterfaceOrientationLandscapeRight" "$PLIST_PATH"
           
-          # Add encryption compliance
-          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST_PATH" 2>/dev/null || \
-          /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$PLIST_PATH"
+          # Configure for iPad (ALL orientations required for multitasking)
+          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations~ipad array" "$PLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations~ipad:0 string UIInterfaceOrientationPortrait" "$PLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations~ipad:1 string UIInterfaceOrientationPortraitUpsideDown" "$PLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations~ipad:2 string UIInterfaceOrientationLandscapeLeft" "$PLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations~ipad:3 string UIInterfaceOrientationLandscapeRight" "$PLIST_PATH"
           
-          # Add microphone usage description
-          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string 'Used for voice recording in games and activities'" "$PLIST_PATH" 2>/dev/null || \
-          /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription 'Used for voice recording in games and activities'" "$PLIST_PATH"
-          
-          echo "✅ IAP configuration complete"
+          echo "✅ Orientation configuration fixed"
 
-      # PHASE 6: UPDATE VERSION NUMBERS
-      - name: Update Version Numbers
-        script: |
-          set -ex
-          echo "=== Updating Version Numbers ==="
-          cd ios/App/App
-          PLIST_PATH="Info.plist"
-          
-          # Generate build number (timestamp)
-          BUILD_NUMBER=$(date +%s)
-          
-          # Set version and build
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$PLIST_PATH"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$PLIST_PATH"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID" "$PLIST_PATH"
-          
-          echo "Version: $APP_VERSION"
-          echo "Build: $BUILD_NUMBER"
-          echo "Bundle ID: $BUNDLE_ID"
-          echo "✅ Version numbers updated"
-
-      # PHASE 7: IOS PROJECT CONFIGURATION
+      # PHASE 5: IOS PROJECT CONFIGURATION WITH SWIFT SUPPORT FIX
       - name: Configure iOS Project
         script: |
           set -ex
-          echo "=== Configuring iOS Project ==="
+          echo "=== Setting up iOS Platform ==="
           cd ios/App
           
-          # Update Podfile for iOS 15.0
-          if [ -f "Podfile" ]; then
+          echo "=== Updating Podfile for Swift Support ==="
+          # Ensure Podfile has proper iOS deployment target for RevenueCat
+          if ! grep -q "platform :ios" Podfile; then
+            # Add platform line if it doesn't exist
+            echo "platform :ios, '15.0'" > temp_podfile
+            cat Podfile >> temp_podfile
+            mv temp_podfile Podfile
+          else
+            # Update existing platform line
             sed -i.bak "s/platform :ios, .*/platform :ios, '15.0'/g" Podfile
             rm -f Podfile.bak
           fi
           
-          # Install pods
-          pod install --repo-update
+          # Add Swift settings without modifying existing post_install hook
+          # Instead, we'll use a script phase or modify project settings later
+          echo "=== Using alternative Swift configuration approach ==="
           
-          # Configure Swift settings in project.pbxproj
-          PBXPROJ="App.xcodeproj/project.pbxproj"
-          if [ -f "$PBXPROJ" ]; then
-            # Set deployment target
-            sed -i.bak 's/IPHONEOS_DEPLOYMENT_TARGET = .*/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g' "$PBXPROJ"
+          echo "=== Installing CocoaPods ==="
+          pod install --repo-update --clean-install
+          
+          echo "=== Verifying Project Structure ==="
+          if [ -d "Pods" ] && [ -d "App.xcworkspace" ]; then
+            echo "✅ CocoaPods installation verified"
             
-            # Set Swift version
-            sed -i.bak 's/SWIFT_VERSION = .*/SWIFT_VERSION = 5.0;/g' "$PBXPROJ"
-            
-            # Ensure Swift libraries are embedded
-            sed -i.bak 's/ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = .*/ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;/g' "$PBXPROJ"
-            
-            rm -f "$PBXPROJ.bak"
-          fi
-          
-          echo "✅ iOS project configured"
-
-      # PHASE 8: CODE SIGNING SETUP
-      - name: Configure Code Signing
-        script: |
-          set -ex
-          echo "=== Setting Up Code Signing ==="
-          cd ios/App
-          
-          # Import certificate
-          echo "$CERTIFICATE" | base64 --decode > /tmp/certificate.p12
-          
-          # Import provisioning profile
-          echo "$PROVISIONING_PROFILE" | base64 --decode > /tmp/profile.mobileprovision
-          
-          # Extract UUID from profile (using openssl since security not available)
-          PROFILE_UUID=$(openssl smime -inform der -verify -noverify -in /tmp/profile.mobileprovision 2>/dev/null | \
-                        grep -A1 '<key>UUID</key>' | grep '<string>' | sed -E 's/.*<string>(.*)<\/string>.*/\1/')
-          
-          if [ -z "$PROFILE_UUID" ]; then
-            echo "❌ Failed to extract profile UUID"
+            # Verify RevenueCat pod was installed
+            if grep -q "Purchases" Podfile.lock; then
+              echo "✅ RevenueCat Purchases framework in Pods"
+            else
+              echo "⚠️ RevenueCat not in Podfile.lock - checking capacitor integration"
+            fi
+          else
+            echo "❌ CocoaPods installation failed!"
             exit 1
           fi
+
+      # PHASE 6: CONFIGURE SWIFT SETTINGS IN XCODE PROJECT
+      - name: Configure Swift Settings
+        script: |
+          set -ex
+          echo "=== Configuring Swift Settings in Xcode Project ==="
+          cd ios/App
+          
+          # Configure Swift settings directly in the project file
+          PBXPROJ="App.xcodeproj/project.pbxproj"
+          
+          # Add Swift version and deployment target to project settings
+          echo "=== Adding Swift 5.0 and iOS 15.0 deployment target ==="
+          
+          # Create backup
+          cp "$PBXPROJ" "$PBXPROJ.backup"
+          
+          # Add IPHONEOS_DEPLOYMENT_TARGET if not present
+          if ! grep -q "IPHONEOS_DEPLOYMENT_TARGET" "$PBXPROJ"; then
+            sed -i.bak '/ASSETCATALOG_COMPILER_APPICON_NAME/a\
+            IPHONEOS_DEPLOYMENT_TARGET = 15.0;' "$PBXPROJ"
+          else
+            sed -i.bak 's/IPHONEOS_DEPLOYMENT_TARGET = .*/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g' "$PBXPROJ"
+          fi
+          
+          # Add Swift version if not present
+          if ! grep -q "SWIFT_VERSION" "$PBXPROJ"; then
+            sed -i.bak '/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/a\
+            SWIFT_VERSION = 5.0;' "$PBXPROJ"
+          else
+            sed -i.bak 's/SWIFT_VERSION = .*/SWIFT_VERSION = 5.0;/g' "$PBXPROJ"
+          fi
+          
+          # Add ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES for Swift support
+          if ! grep -q "ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES" "$PBXPROJ"; then
+            sed -i.bak '/SWIFT_VERSION = 5.0;/a\
+            ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;' "$PBXPROJ"
+          fi
+          
+          # Clean up backup files
+          rm -f "$PBXPROJ.bak"
+          
+          echo "✅ Swift settings configured in Xcode project"
+          
+          # Verify the changes
+          echo "=== Verifying Project Settings ==="
+          grep -E "IPHONEOS_DEPLOYMENT_TARGET|SWIFT_VERSION|ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES" "$PBXPROJ" || echo "Settings not found (may be in different build configuration)"
+          
+          # Also update the project.pbxproj for the main target to ensure Swift libraries are embedded
+          echo "=== Ensuring Swift libraries are properly embedded ==="
+          if grep -q "ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES" "$PBXPROJ"; then
+            echo "✅ ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES is set"
+          else
+            # Add it to the main project build settings
+            sed -i.bak '/Build Settings/a\
+            ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;' "$PBXPROJ"
+            rm -f "$PBXPROJ.bak"
+          fi
+
+      # PHASE 7: CREATE XCODE SCHEME
+      - name: Create Xcode Scheme
+        script: |
+          set -ex
+          echo "=== Creating Xcode scheme ==="
+          cd ios/App
+          
+          # Create scheme directory
+          mkdir -p App.xcodeproj/xcshareddata/xcschemes
+          
+          # Create scheme file
+          cat > App.xcodeproj/xcshareddata/xcschemes/App.xcscheme << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <Scheme LastUpgradeVersion="1500" version="1.7">
+            <BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES">
+              <BuildActionEntries>
+                <BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">
+                  <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="1DF1B9C3257A6D4E00F1B1A6" BuildableName="App.app" BlueprintName="App" ReferencedContainer="container:App.xcodeproj"/>
+                </BuildActionEntry>
+              </BuildActionEntries>
+            </BuildAction>
+            <TestAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.DebuggerFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv="YES" codeCoverageEnabled="YES">
+              <Testables/>
+            </TestAction>
+            <LaunchAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.DebuggerFoundation.Launcher.LLDB" launchStyle="0" useCustomWorkingDirectory="NO" ignoresPersistentStateOnLaunch="NO" debugDocumentVersioning="YES" debugServiceExtension="internal" allowLocationSimulation="YES">
+              <BuildableProductRunnable runnableDebuggingMode="0">
+                <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="1DF1B9C3257A6D4E00F1B1A6" BuildableName="App.app" BlueprintName="App" ReferencedContainer="container:App.xcodeproj"/>
+              </BuildableProductRunnable>
+            </LaunchAction>
+            <ProfileAction buildConfiguration="Release" shouldUseLaunchSchemeArgsEnv="YES" savedToolIdentifier="" useCustomWorkingDirectory="NO" debugDocumentVersioning="YES">
+              <BuildableProductRunnable runnableDebuggingMode="0">
+                <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="1DF1B9C3257A6D4E00F1B1A6" BuildableName="App.app" BlueprintName="App" ReferencedContainer="container:App.xcodeproj"/>
+              </BuildableProductRunnable>
+            </ProfileAction>
+            <AnalyzeAction buildConfiguration="Debug"/>
+            <ArchiveAction buildConfiguration="Release" revealArchiveInOrganizer="YES"/>
+          </Scheme>
+          EOF
+          
+          echo "✅ Xcode scheme created"
+
+      # PHASE 8: CODE SIGNING SETUP
+      - name: Configure Signing
+        script: |
+          set -ex
+          echo "=== Setting Up Signing ==="
+          cd ios/App
+          
+          # Import certificates
+          echo "$CERTIFICATE" | base64 --decode > signing.p12
+          echo "$PROVISIONING_PROFILE" | base64 --decode > profile.mobileprovision
+          
+          # Extract provisioning profile UUID
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< $(security cms -D -i profile.mobileprovision))
+          [ -n "$PROFILE_UUID" ] || { echo "❌ Failed to extract profile UUID"; exit 1; }
           
           # Set up keychain
-          keychain initialize
-          
-          # Add certificate to keychain
-          keychain add-certificates \
-            --certificate /tmp/certificate.p12 \
-            --certificate-password "$CERTIFICATE_PASSWORD"
+          security create-keychain -p "" build.keychain
+          security import signing.p12 -k build.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -s build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security set-key-partition-list -S apple-tool:,apple: -k "" build.keychain
           
           # Install provisioning profile
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp /tmp/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/"$PROFILE_UUID".mobileprovision
+          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/"$PROFILE_UUID".mobileprovision
           
-          # Set up code signing settings
-          xcode-project use-profiles
+          # Create pod signing override file
+          echo "=== Configuring Pod Signing ==="
+          cat > disable-pod-signing.xcconfig << EOF
+          CODE_SIGNING_ALLOWED = NO
+          CODE_SIGNING_REQUIRED = NO
+          PROVISIONING_PROFILE_SPECIFIER = ""
+          DEVELOPMENT_TEAM = ""
+          EOF
+          
+          # Update Pods xcconfig files with absolute path
+          find "Pods/Target Support Files" -name "*.*cconfig" | while read file; do
+            echo "#include \"$(pwd)/disable-pod-signing.xcconfig\"" >> "$file"
+          done
+          
+          # Convert to manual signing in project file
+          echo "=== Updating Project Settings ==="
+          PBXPROJ="App.xcodeproj/project.pbxproj"
+          cp "$PBXPROJ" "$PBXPROJ.bak"
+          
+          # Remove any automatic signing settings
+          sed -i '' '/PROVISIONING_PROFILE_SPECIFIER/d' "$PBXPROJ"
+          sed -i '' '/CODE_SIGN_STYLE/d' "$PBXPROJ"
+          sed -i '' '/DEVELOPMENT_TEAM/d' "$PBXPROJ"
+          
+          # Add manual signing settings
+          sed -i '' "/buildSettings = {/a \\
+              CODE_SIGN_STYLE = Manual; \\
+              PROVISIONING_PROFILE_SPECIFIER = \"$PROFILE_UUID\"; \\
+              DEVELOPMENT_TEAM = $DEVELOPMENT_TEAM; \\
+              CODE_SIGN_IDENTITY = \"Apple Distribution\"; \\
+              " "$PBXPROJ"
           
           echo "PROFILE_UUID=$PROFILE_UUID" >> $CM_ENV
-          echo "✅ Code signing configured"
+          echo "✅ Signing configuration complete"
 
-      # PHASE 9: BUILD IPA
-      - name: Build IPA
+      # PHASE 9: BUILD CONFIGURATION WITH VERSION INCREMENT
+      - name: Configure Build Settings
         script: |
           set -ex
-          echo "=== Building IPA ==="
+          cd ios/App/App
+          
+          echo "=== Updating Version Numbers ==="
+          PLIST_PATH="Info.plist"
+          
+          # Get current version and build number
+          CURRENT_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST_PATH" 2>/dev/null || echo "2.3")
+          CURRENT_BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$PLIST_PATH" 2>/dev/null || echo "1")
+          
+          echo "Current version: $CURRENT_VERSION"
+          echo "Current build: $CURRENT_BUILD"
+          
+          # Parse version components safely
+          MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+          MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
+          PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
+          
+          # Handle cases where PATCH might be empty
+          if [ -z "$PATCH" ] || [ "$PATCH" = "$CURRENT_VERSION" ]; then
+            PATCH="0"
+          fi
+          
+          # Increment patch version (2.2.0 → 2.3.0)
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+          
+          # Generate timestamp-based build number for uniqueness
+          NEW_BUILD=$(date +%s)
+          
+          echo "New version: $NEW_VERSION"
+          echo "New build: $NEW_BUILD"
+          
+          # Update both version and build number
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEW_VERSION" "$PLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_BUILD" "$PLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID" "$PLIST_PATH"
+          
+          # Add Swift support requirements
+          /usr/libexec/PlistBuddy -c "Add :CFBundlePackageType string APPL" "$PLIST_PATH" 2>/dev/null || true
+          
+          echo "=== Verifying Plist Changes ==="
+          FINAL_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST_PATH")
+          FINAL_BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$PLIST_PATH")
+          FINAL_BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$PLIST_PATH")
+          
+          echo "Final CFBundleShortVersionString: $FINAL_VERSION"
+          echo "Final CFBundleVersion: $FINAL_BUILD"
+          echo "Final CFBundleIdentifier: $FINAL_BUNDLE_ID"
+          
+          # Critical validation - ensure CFBundleShortVersionString is set
+          if [ -z "$FINAL_VERSION" ] || [[ "$FINAL_VERSION" == *"$"* ]]; then
+            echo "❌ CRITICAL: CFBundleShortVersionString is not properly set!"
+            echo "Setting fallback version: 2.3.0"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 2.3.0" "$PLIST_PATH"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_BUILD" "$PLIST_PATH"
+          fi
+          
+          # Final verification
+          echo "=== Final Verification ==="
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$PLIST_PATH"
+          
+          echo "✅ Build settings configured definitively"
+
+      # PHASE 10: ADD PRIVACY DESCRIPTIONS
+      - name: Add Privacy Descriptions
+        script: |
+          set -ex
+          cd ios/App/App
+          
+          echo "=== Adding Required Privacy Descriptions ==="
+          PLIST_PATH="Info.plist"
+          
+          # Add microphone usage description for voice recording
+          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string 'Used for voice recording in games and activities'" "$PLIST_PATH" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription 'Used for voice recording in games and activities'" "$PLIST_PATH"
+          
+          echo "✅ Privacy descriptions added"
+
+      # PHASE 11: APP ENCRYPTION COMPLIANCE
+      - name: Add App Encryption Compliance
+        script: |
+          set -ex
+          cd ios/App/App
+          
+          echo "=== Adding App Encryption Compliance Documentation ==="
+          PLIST_PATH="Info.plist"
+          
+          # Add the key that indicates we only use Apple's standard encryption
+          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST_PATH" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$PLIST_PATH"
+          
+          echo "✅ Added ITSAppUsesNonExemptEncryption = false to Info.plist"
+
+      # PHASE 12: BUILD ARCHIVE
+      - name: Build Archive
+        script: |
+          set -ex
           cd ios/App
           
-          # Build the IPA
-          xcode-project build-ipa \
-            --workspace "$XCODE_WORKSPACE" \
-            --scheme "$XCODE_SCHEME" \
-            --configuration Release
+          echo "=== Building Archive ==="
+          rm -rf build/*
           
-          if [ ! -f "build/ios/ipa/App.ipa" ]; then
-            echo "❌ IPA build failed"
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -archivePath build/App.xcarchive \
+            clean archive
+          
+          if [ ! -d "build/App.xcarchive" ]; then
+            echo "❌ Archive failed"
             exit 1
           fi
           
-          echo "✅ IPA built successfully"
+          echo "✅ Archive created successfully"
 
-      # PHASE 10: VALIDATE BUILD
-      - name: Validate Build
+      # PHASE 13: EXPORT IPA
+      - name: Export IPA
         script: |
           set -ex
-          echo "=== Validating Build ==="
+          cd ios/App
           
-          IPA_PATH="ios/App/build/ios/ipa/App.ipa"
-          if [ ! -f "$IPA_PATH" ]; then
+          echo "=== Exporting IPA ==="
+          
+          # Create export options plist
+          cat > build/exportOptions.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>teamID</key>
+              <string>$DEVELOPMENT_TEAM</string>
+              <key>uploadSymbols</key>
+              <true/>
+          </dict>
+          </plist>
+          EOF
+          
+          # Export IPA
+          xcodebuild -exportArchive \
+            -archivePath build/App.xcarchive \
+            -exportPath build/ipa \
+            -exportOptionsPlist build/exportOptions.plist \
+            -allowProvisioningUpdates
+          
+          if [ ! -f "build/ipa/App.ipa" ]; then
+            echo "❌ IPA export failed"
+            exit 1
+          fi
+          
+          echo "✅ IPA exported successfully"
+
+      # PHASE 14: VALIDATION AND ARTIFACT PREPARATION
+      - name: Validate Build and Prepare Artifacts
+        script: |
+          set -ex
+          echo "=== Validating Build Artifacts ==="
+          
+          if [ ! -f "ios/App/build/ipa/App.ipa" ]; then
             echo "❌ IPA file not found"
             exit 1
           fi
           
-          echo "✅ Build validation complete"
-          echo "IPA size: $(du -h $IPA_PATH | cut -f1)"
+          # Check IPA contents
+          unzip -l "ios/App/build/ipa/App.ipa" | grep "Payload/App.app" || {
+            echo "❌ Invalid IPA structure"
+            exit 1
+          }
+          
+          # Verify signing in the final IPA
+          TEMP_DIR=$(mktemp -d)
+          unzip -q ios/App/build/ipa/App.ipa -d "$TEMP_DIR"
+          codesign -dv --verbose=4 "$TEMP_DIR/Payload/App.app" 2>&1 | grep -E 'Authority=Apple Distribution|TeamIdentifier=' || {
+            echo "❌ Final IPA signing verification failed";
+            exit 1;
+          }
+          rm -rf "$TEMP_DIR"
+          
+          # Create final Info.plist verification artifact
+          cd ios/App/App
+          cp Info.plist Final_Info_Plist_Verification.plist
+          echo "=== FINAL INFO.PLIST CONTENTS ===" > Info_Plist_Verification.txt
+          /usr/libexec/PlistBuddy -c "Print" Info.plist >> Info_Plist_Verification.txt
+          
+          echo "✅ Build validation successful"
+          echo "📱 IPA file size: $(du -h ios/App/build/ipa/App.ipa | cut -f1)"
 
     artifacts:
-      - ios/App/build/ios/ipa/App.ipa
-      - ios/App/App/Info.plist
-      - build_info.txt
+      - ios/App/build/ipa/App.ipa
+      - ios/App/App/Final_Info_Plist_Verification.plist
+      - ios/App/App/Info_Plist_Verification.txt
 
     publishing:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
-        beta_groups:
-          - "Internal Testers"
-        beta_app_feedback_email: "feedback@daretoconnectgames.com"
-      
-      email:
-        recipients:
-          - "markkantet@gmail.com"
-        notify:
-          - success
