@@ -115,18 +115,40 @@ workflows:
           echo "=== Creating clean Podfile with iOS 15.0 target ==="
           cd ios/App
           
-          # Completely clean everything
+          # COMPLETE NUCLEAR CLEAN
+          echo "=== Performing nuclear clean ==="
           rm -rf Pods Podfile.lock
           rm -f Podfile
           
-          # Clear CocoaPods cache
+          # Clear all CocoaPods caches
+          rm -rf ~/.cocoapods/repos/trunk/
           pod cache clean --all
+          pod repo remove trunk || true
+          pod setup
           
-          # Get the exact podspec name from the file
-          UI_PODSPEC_NAME=$(basename $(ls ../../node_modules/@revenuecat/purchases-capacitor-ui/*.podspec | head -1) .podspec)
-          echo "Found UI podspec name: $UI_PODSPEC_NAME"
+          # Get the exact podspec names
+          RC_PODSPEC=$(basename $(ls ../../node_modules/@revenuecat/purchases-capacitor/*.podspec | head -1) .podspec)
+          UI_PODSPEC=$(basename $(ls ../../node_modules/@revenuecat/purchases-capacitor-ui/*.podspec | head -1) .podspec)
           
-          # Create Podfile with the exact podspec name
+          echo "RevenueCat pod: $RC_PODSPEC"
+          echo "RevenueCat UI pod: $UI_PODSPEC"
+          
+          # Create minimal Podfile first
+          cat > Podfile << EOF
+          platform :ios, '15.0'
+          use_frameworks!
+          
+          target 'App' do
+            # Only RevenueCat pods first
+            pod '$RC_PODSPEC', :path => '../../node_modules/@revenuecat/purchases-capacitor'
+            pod '$UI_PODSPEC', :path => '../../node_modules/@revenuecat/purchases-capacitor-ui'
+          end
+          EOF
+          
+          echo "=== Installing RevenueCat pods first ==="
+          pod install --repo-update
+          
+          # Now add the rest of the pods
           cat > Podfile << EOF
           platform :ios, '15.0'
           use_frameworks!
@@ -134,9 +156,9 @@ workflows:
           install! 'cocoapods', :deterministic_uuids => false, :integrate_targets => true
           
           target 'App' do
-            # RevenueCat pods - using exact podspec names
-            pod 'RevenuecatPurchasesCapacitor', :path => '../../node_modules/@revenuecat/purchases-capacitor'
-            pod '$UI_PODSPEC_NAME', :path => '../../node_modules/@revenuecat/purchases-capacitor-ui'
+            # RevenueCat pods
+            pod '$RC_PODSPEC', :path => '../../node_modules/@revenuecat/purchases-capacitor'
+            pod '$UI_PODSPEC', :path => '../../node_modules/@revenuecat/purchases-capacitor-ui'
             
             # Capacitor core
             pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
@@ -153,15 +175,12 @@ workflows:
               if [ -d "$plugin" ]; then
                 plugin_name=$(basename "$plugin")
                 # Skip non-iOS plugins
-                if [ "$plugin_name" != "android" ] && [ "$plugin_name" != "cli" ] && [ "$plugin_name" != "core" ]; then
+                if [ "$plugin_name" != "android" ] && [ "$plugin_name" != "cli" ] && [ "$plugin_name" != "core" ] && [ "$plugin_name" != "ios" ]; then
                   # Look for podspec files
                   for podspec in "$plugin"/*.podspec; do
                     if [ -f "$podspec" ]; then
                       pod_name=$(basename "$podspec" .podspec)
-                      # Skip Capacitor and CapacitorCordova as they're already added
-                      if [ "$pod_name" != "Capacitor" ] && [ "$pod_name" != "CapacitorCordova" ]; then
-                        echo "  pod '$pod_name', :path => '../../node_modules/@capacitor/$plugin_name'" >> Podfile
-                      fi
+                      echo "  pod '$pod_name', :path => '../../node_modules/@capacitor/$plugin_name'" >> Podfile
                     fi
                   done
                 fi
@@ -185,16 +204,12 @@ workflows:
           end
           EOF
           
-          # Show the generated Podfile
-          echo "=== Generated Podfile ==="
-          cat Podfile
-          
-          echo "=== Running pod install ==="
-          pod install --repo-update
+          echo "=== Installing all pods ==="
+          pod install
           
           # Verify RevenueCat UI was installed
-          if grep -q "$UI_PODSPEC_NAME" Podfile.lock; then
-            echo "✅ RevenueCat UI ($UI_PODSPEC_NAME) successfully installed"
+          if grep -q "$UI_PODSPEC" Podfile.lock; then
+            echo "✅ RevenueCat UI ($UI_PODSPEC) successfully installed"
           else
             echo "❌ RevenueCat UI not found in Podfile.lock"
             exit 1
