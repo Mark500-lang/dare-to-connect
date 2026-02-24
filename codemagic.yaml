@@ -96,7 +96,7 @@ workflows:
           
           echo "✅ React build completed successfully"
 
-      # PHASE 4: CAPACITOR SYNC WITH VERSION ALIGNMENT
+     # PHASE 4: CAPACITOR SYNC WITH PROPER DEPLOYMENT TARGET
       - name: Sync Capacitor and Configure IAP
         script: |
           set -ex
@@ -108,45 +108,47 @@ workflows:
             npx cap add ios
           fi
           
-          # Set minimum iOS deployment target to 15.0
-          echo "=== Setting minimum iOS deployment target to 15.0 ==="
-          cd ios/App
-          
-          # Update deployment target in project.pbxproj
-          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g' App.xcodeproj/project.pbxproj
-          
-          cd ../..
-          
-          # Sync Capacitor
+          # Sync Capacitor first to generate the Podfile
           npx cap sync ios
           
-          # Force pod update to resolve dependencies correctly
+          # NOW configure the Podfile with proper iOS version (THIS IS THE KEY)
+          echo "=== Configuring Podfile for iOS 15.0 ==="
           cd ios/App
-          pod update PurchasesHybridCommon PurchasesHybridCommonUI --repo-update
+          
+          # Ensure Podfile has proper iOS deployment target for RevenueCat UI
+          if ! grep -q "platform :ios" Podfile; then
+            # Add platform line if it doesn't exist
+            echo "platform :ios, '15.0'" > temp_podfile
+            cat Podfile >> temp_podfile
+            mv temp_podfile Podfile
+          else
+            # Update existing platform line
+            sed -i.bak "s/platform :ios, .*/platform :ios, '15.0'/g" Podfile
+            rm -f Podfile.bak
+          fi
+          
+          # Add post_install hook to ensure all targets use iOS 15.0
+          cat >> Podfile << 'EOF'
+            post_install do |installer|
+              installer.pods_project.targets.each do |target|
+                target.build_configurations.each do |config|
+                  config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+                  config.build_settings['ENABLE_BITCODE'] = 'NO'
+                  config.build_settings['SWIFT_VERSION'] = '5.0'
+                  config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'YES'
+                end
+              end
+            end
+          EOF
+          
+          echo "=== Running pod install with iOS 15.0 target ==="
+          pod install --repo-update
+          
           cd ../..
           
           echo "=== Configuring Proper iOS Orientations ==="
           cd ios/App/App
           PLIST_PATH="Info.plist"
-          
-          # Remove any existing orientation settings
-          /usr/libexec/PlistBuddy -c "Delete :UISupportedInterfaceOrientations" "$PLIST_PATH" 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Delete :UISupportedInterfaceOrientations~ipad" "$PLIST_PATH" 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Delete :UISupportedInterfaceOrientations~iphone" "$PLIST_PATH" 2>/dev/null || true
-          
-          # Configure for iPhone (Landscape only)
-          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations array" "$PLIST_PATH"
-          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations:0 string UIInterfaceOrientationLandscapeLeft" "$PLIST_PATH"
-          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations:1 string UIInterfaceOrientationLandscapeRight" "$PLIST_PATH"
-          
-          # Configure for iPad (ALL orientations required for multitasking)
-          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations~ipad array" "$PLIST_PATH"
-          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations~ipad:0 string UIInterfaceOrientationPortrait" "$PLIST_PATH"
-          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations~ipad:1 string UIInterfaceOrientationPortraitUpsideDown" "$PLIST_PATH"
-          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations~ipad:2 string UIInterfaceOrientationLandscapeLeft" "$PLIST_PATH"
-          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations~ipad:3 string UIInterfaceOrientationLandscapeRight" "$PLIST_PATH"
-          
-          echo "✅ Orientation configuration fixed"
 
       # PHASE 5: IOS PROJECT CONFIGURATION (SIMPLIFIED)
       - name: Configure iOS Project
