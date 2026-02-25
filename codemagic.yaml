@@ -257,6 +257,15 @@ workflows:
             "s|CODE_SIGN_STYLE = Manual;|CODE_SIGN_STYLE = Manual;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"$PROFILE_UUID\";|g" \
             App.xcodeproj/project.pbxproj
 
+          # Fix deployment target in App project - must match Pods (15.0)
+          sed -i '' \
+            's/IPHONEOS_DEPLOYMENT_TARGET = 14.0/IPHONEOS_DEPLOYMENT_TARGET = 15.0/g' \
+            App.xcodeproj/project.pbxproj
+
+          # Verify it was updated
+          echo "=== Deployment target check ==="
+          grep "IPHONEOS_DEPLOYMENT_TARGET" App.xcodeproj/project.pbxproj
+          
           # FIX 2: Set CODE_SIGN_IDENTITY to Distribution (not Development)
           sed -i '' \
             's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = "iPhone Distribution"/g' \
