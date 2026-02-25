@@ -216,7 +216,7 @@
 /* Current Plan Card */
 .current-plan-card {
   background: linear-gradient(135deg, #1674a2 0%, #0d5a7d 100%);
-  color: white !important;
+  color: rgba(0, 0, 0, 0.774) !important;
   padding: 16px;
   border-radius: 12px;
   margin: 20px 0;

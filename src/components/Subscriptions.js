@@ -177,7 +177,7 @@ const handleRestorePurchases = async () => {
   };
 
   const isCurrentPlan = selectedPackage && userSubscription?.packageId === selectedPackage.id;
-
+ 
   // Show loading while checking auth
   if (!isAuthenticated) {
     return (
@@ -287,7 +287,7 @@ const handleRestorePurchases = async () => {
                 {userSubscription.packageName}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Expires: {new Date(userSubscription.expiryDate).toLocaleDateString()}
+                Expires: {new Date(userSubscription.toDate).toLocaleDateString()}
               </Typography>
             </Box>
           </Paper>
