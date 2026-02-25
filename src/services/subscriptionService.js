@@ -2,6 +2,7 @@
 import { API_CONFIG, buildRequestBody, handleApiResponse, cacheService } from '../config/api';
 import authService from './authService';
 import { Purchases } from '@revenuecat/purchases-capacitor';
+import { Capacitor } from '@capacitor/core';
 
 class SubscriptionService {
     constructor() {
@@ -51,13 +52,7 @@ class SubscriptionService {
     }
 
     getPlatform() {
-        const userAgent = navigator.userAgent.toLowerCase();
-        if (userAgent.includes('iphone') || userAgent.includes('ipad') || userAgent.includes('mac')) {
-            return 'ios';
-        } else if (userAgent.includes('android')) {
-            return 'android';
-        }
-        return 'web';
+        return Capacitor.getPlatform(); // 'ios', 'android', or 'web'
     }
 
     getRevenueCatApiKey() {
@@ -73,13 +68,13 @@ class SubscriptionService {
 
     // Map your backend package IDs to RevenueCat product IDs
     getRevenueCatProductId(packageId) {
-        const productMap = {
-            1: 'com.daretoconnect.bronze',
-            2: 'com.daretoconnect.silver',
-            3: 'com.daretoconnect.gold',
-            4: 'com.daretoconnect.platinum'
+        const packageMap = {
+            1: '$rc_weekly',    // your 1-week package
+            2: '$rc_monthly',   // your 1-month package
+            3: '$rc_monthly',   // most popular (adjust if different)
+            4: '$rc_annual',    // best value / yearly
         };
-        return productMap[packageId] || null;
+        return packageMap[packageId] || null;
     }
 
     async getPaymentPackages(forceRefresh = false) {
@@ -131,56 +126,59 @@ class SubscriptionService {
     // SINGLE METHOD: Purchase through RevenueCat and record via initiatePayment
     async purchasePackage(packageId) {
         try {
-            // 1. Initialize RevenueCat
             const revenueCatReady = await this.initializeRevenueCat();
             if (!revenueCatReady) {
                 throw new Error('In-app purchases not available on this platform.');
             }
 
-            // 2. Get RevenueCat product ID
-            const productId = this.getRevenueCatProductId(packageId);
-            if (!productId) {
-                throw new Error('Product not available for purchase');
-            }
-
-            // 3. Get offerings from RevenueCat
             const offerings = await Purchases.getOfferings();
             const currentOffering = offerings?.current;
-            
-            if (!currentOffering) {
+
+            // Debug log — check this in Xcode console during TestFlight
+            console.log('RC Offerings:', JSON.stringify({
+                currentId: currentOffering?.identifier,
+                packages: currentOffering?.availablePackages?.map(p => ({
+                    id: p.identifier,
+                    productId: p.product?.productIdentifier,
+                    price: p.product?.priceString
+                }))
+            }, null, 2));
+
+            if (!currentOffering?.availablePackages?.length) {
                 throw new Error('No subscription offerings available');
             }
 
-            // 4. Find the package to purchase
+            // Get the RC package identifier for this backend package ID
+            const rcPackageIdentifier = this.getRevenueCatPackageIdentifier(packageId);
+            if (!rcPackageIdentifier) {
+                throw new Error('No package mapping found for packageId: ' + packageId);
+            }
+
+            // Find the package using RC identifier
             const packageToPurchase = currentOffering.availablePackages.find(
-                pkg => pkg.identifier === productId
+                pkg => pkg.identifier === rcPackageIdentifier
             );
 
             if (!packageToPurchase) {
-                throw new Error('Subscription package not found');
+                throw new Error(`Package "${rcPackageIdentifier}" not found in offering`);
             }
 
-            // 5. GENERATE REFERENCE NUMBER FIRST (Before purchase)
-            // This creates a pending payment record in your backend
+            // Generate payment reference before purchase
             const paymentRefData = await this.initiatePayment(packageId);
-            if (!paymentRefData || !paymentRefData.ref_no) {
+            if (!paymentRefData?.ref_no) {
                 throw new Error('Failed to generate payment reference');
             }
 
-            // 6. MAKE THE PURCHASE THROUGH REVENUECAT
-            console.log('Purchasing package via RevenueCat:', packageToPurchase);
+            // Correct v12 SDK purchase call
             const purchaseResult = await Purchases.purchasePackage({
-                identifier: packageToPurchase.identifier,
-                offeringIdentifier: currentOffering.identifier
+                aPackage: packageToPurchase
             });
 
-            if (purchaseResult && purchaseResult.customerInfo) {
-                // SUCCESS! Your backend already recorded the payment via initiatePayment
-                
+            if (purchaseResult?.customerInfo) {
                 return {
                     success: true,
                     paymentRef: paymentRefData.ref_no,
-                    packageId: packageId,
+                    packageId,
                     customerInfo: purchaseResult.customerInfo
                 };
             }
@@ -188,17 +186,9 @@ class SubscriptionService {
             throw new Error('Purchase failed or was cancelled');
 
         } catch (error) {
-            console.error('Purchase error:', error);
-            
-            // Handle specific RevenueCat errors
-            if (error.code === 'E_USER_CANCELLED') {
-                throw new Error('Purchase was cancelled');
-            } else if (error.code === 'E_NETWORK_ERROR') {
-                throw new Error('Network error. Please check your connection.');
-            } else if (error.message?.includes('already purchased') || error.code === 'E_PRODUCT_ALREADY_PURCHASED') {
-                throw new Error('You already own this subscription');
-            }
-            
+            if (error.code === 'E_USER_CANCELLED') throw new Error('Purchase was cancelled');
+            if (error.code === 'E_NETWORK_ERROR') throw new Error('Network error. Please check your connection.');
+            if (error.code === 'E_PRODUCT_ALREADY_PURCHASED') throw new Error('You already own this subscription');
             throw error;
         }
     }
