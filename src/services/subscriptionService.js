@@ -148,18 +148,18 @@ class SubscriptionService {
             }
 
             // Get the RC package identifier for this backend package ID
-            const rcPackageIdentifier = this.getRevenueCatPackageIdentifier(packageId);
+            const rcProductId = this.getRevenueCatProductId(packageId);
             if (!rcPackageIdentifier) {
                 throw new Error('No package mapping found for packageId: ' + packageId);
             }
 
             // Find the package using RC identifier
             const packageToPurchase = currentOffering.availablePackages.find(
-                pkg => pkg.identifier === rcPackageIdentifier
+                pkg => pkg.product?.productIdentifier === rcProductId
             );
 
             if (!packageToPurchase) {
-                throw new Error(`Package "${rcPackageIdentifier}" not found in offering`);
+                throw new Error(`Product "${rcProductId}" not found in offering`);
             }
 
             // Generate payment reference before purchase
@@ -322,3 +322,4 @@ class SubscriptionService {
 // Create and export singleton instance
 const subscriptionService = new SubscriptionService();
 export default subscriptionService;
+packageToPurchase
