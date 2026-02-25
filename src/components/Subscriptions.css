@@ -403,3 +403,56 @@
     font-size: 16px;
   }
 }
+
+/* Legal Footer Styles - Apple Compliance */
+.legal-footer {
+  margin-top: 24px;
+  padding: 16px 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.legal-text {
+  font-size: 11px !important;
+  line-height: 1.5 !important;
+  color: #666 !important;
+}
+
+.legal-link {
+  color: #1674a2 !important;
+  text-decoration: none;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.legal-link:hover {
+  text-decoration: underline !important;
+}
+
+.renewal-text,
+.manage-text {
+  font-size: 10px !important;
+  line-height: 1.4 !important;
+  color: #888 !important;
+}
+
+/* Restore section styling */
+.restore-section {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.restore-section button {
+  color: #1674a2;
+  font-size: 13px;
+  text-transform: none;
+  font-weight: 500;
+  padding: 6px 12px;
+}
+
+.restore-section button:hover {
+  background-color: rgba(22, 116, 162, 0.04);
+  text-decoration: underline;
+}

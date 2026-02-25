@@ -249,6 +249,165 @@
     animation: spin 1s linear infinite;
 }
 
+/* Promo Footer */
+.promo-footer {
+    display: block;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    padding: 0 !important;
+    text-align: center;
+}
+
+.site-link {
+    text-align: center;
+    text-decoration: none;
+    color: #000000;
+    font-size: 14px;
+    transition: color 0.3s;
+}
+
+.site-link:hover {
+    color: #1674a2;
+}
+
+/* ===== NEW STYLES FOR LOCKED GAMES AND GAME NAMES ===== */
+/* Locked game styles */
+.game-card.locked {
+    position: relative;
+    cursor: pointer;
+    opacity: 1;
+}
+
+.game-lock-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(1px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: 30px;
+    pointer-events: none;
+    transition: background-color 0.2s ease;
+}
+
+.game-card.locked:hover .game-lock-overlay {
+    background-color: rgba(0, 0, 0, 0.6);
+}
+
+.lock-icon {
+    color: white;
+    font-size: 32px;
+    margin-bottom: 8px;
+}
+
+.lock-text {
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Game name container */
+.game-name-container {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 10px;
+    text-align: center;
+    z-index: 5;
+}
+
+.game-name {
+    font-weight: 700;
+    font-size: 16px;
+    color: white;
+    display: block;
+    margin-bottom: 4px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.free-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 3px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Responsive adjustments for new elements */
+@media (max-width: 768px) {
+    .game-lock-overlay {
+        border-radius: 25px;
+    }
+    
+    .game-name-container {
+        padding: 10px 8px;
+        border-bottom-left-radius: 25px;
+        border-bottom-right-radius: 25px;
+    }
+    
+    .game-name {
+        font-size: 14px;
+    }
+    
+    .free-badge {
+        font-size: 10px;
+        padding: 2px 8px;
+    }
+    
+    .lock-icon {
+        font-size: 28px;
+    }
+    
+    .lock-text {
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .game-lock-overlay {
+        border-radius: 20px;
+    }
+    
+    .game-name-container {
+        padding: 8px 6px;
+    }
+    
+    .game-name {
+        font-size: 12px;
+        margin-bottom: 2px;
+    }
+    
+    .free-badge {
+        font-size: 9px;
+        padding: 2px 6px;
+    }
+    
+    .lock-icon {
+        font-size: 24px;
+        margin-bottom: 4px;
+    }
+    
+    .lock-text {
+        font-size: 10px;
+    }
+}
+
 /* Animations */
 @keyframes pulse {
     0% {
@@ -275,69 +434,4 @@
 
 @keyframes spin {
     to { transform: rotate(360deg); }
-}
-
-/* Promo Footer */
-.promo-footer {
-    display: block;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: white;
-    padding: 0 !important;
-    text-align: center;
-}
-
-.site-link {
-    text-align: center;
-    text-decoration: none;
-    color: #000000;
-    font-size: 14px;
-    transition: color 0.3s;
-}
-
-.site-link:hover {
-    color: #1674a2;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .games-grid,
-    .skeleton-grid {
-        gap: 20px;
-        padding: 0 20px 40px;
-    }
-    
-    .game-card,
-    .skeleton-card,
-    .game-card-skeleton {
-        border-radius: 25px;
-    }
-}
-
-@media (max-width: 480px) {
-    .library-header {
-        padding: 15px 15px 5px;
-        gap: 20px;
-    }
-    
-    .library-title {
-        font-size: 20px;
-    }
-    
-    .games-grid,
-    .skeleton-grid {
-        gap: 15px;
-        padding: 0 18px 40px;
-    }
-    
-    .game-card,
-    .skeleton-card,
-    .game-card-skeleton {
-        border-radius: 20px;
-    }
-    
-    .game-fallback {
-        font-size: 36px;
-    }
 }

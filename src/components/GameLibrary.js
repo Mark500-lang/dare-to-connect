@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { RiMenu2Line } from "react-icons/ri";
+import { IoLockClosed } from "react-icons/io5"; // Import lock icon
+import subscriptionService from '../services/subscriptionService'; // Import subscription service
 import './GameLibrary.css';
 
 // Image cache to store loaded images
@@ -33,7 +35,7 @@ const preloadImage = (url, gameId) => {
 const GameLibrary = () => {
     const navigate = useNavigate();
     const { toggleSidebar } = useOutletContext();
-    const { games, refreshGames, loading, error, isAuthenticated } = useAuth();
+    const { games, refreshGames, loading, error, isAuthenticated, user } = useAuth();
     const [refreshing, setRefreshing] = useState(false);
     const [imageStates, setImageStates] = useState({}); // { gameId: { loading: boolean, loaded: boolean, error: boolean } }
     const [pullState, setPullState] = useState({
@@ -42,10 +44,59 @@ const GameLibrary = () => {
         pullDistance: 0,
         maxPullDistance: 80
     });
+    const [hasSubscription, setHasSubscription] = useState(false);
+    const [checkingSubscription, setCheckingSubscription] = useState(true);
     
     const containerRef = useRef(null);
     const pullStartY = useRef(0);
     const preloadPromises = useRef([]);
+
+    // Check user's subscription status on mount and when user changes
+    useEffect(() => {
+        checkUserSubscription();
+    }, [user]);
+
+    const checkUserSubscription = async () => {
+        if (!isAuthenticated || !user?.id) {
+            setHasSubscription(false);
+            setCheckingSubscription(false);
+            return;
+        }
+
+        try {
+            setCheckingSubscription(true);
+            const subscription = await subscriptionService.getUserSubscription();
+            
+            console.log('Raw subscription data:', subscription); // Debug log
+            
+            // Based on your Subscriptions model checkSubscriptionDetails method
+            // It returns an array with: packageId, packageName, status, fromDate, toDate
+            // Status can be "Active", "Expired", or "Trial"
+            
+            let isActive = false;
+            
+            if (subscription) {
+                // Check based on your data structure
+                if (subscription.status === 'Active') {
+                    isActive = true;
+                } 
+                // Also check if there's a toDate that's in the future
+                else if (subscription.toDate) {
+                    const today = new Date();
+                    const expiryDate = new Date(subscription.toDate);
+                    isActive = expiryDate > today;
+                }
+            }
+            
+            console.log('Subscription active status:', isActive);
+            setHasSubscription(isActive);
+        } catch (error) {
+            console.error('Error checking subscription:', error);
+            setHasSubscription(false);
+        } finally {
+            setCheckingSubscription(false);
+        }
+    };
 
     useEffect(() => {
         // Initial load if games not already loaded
@@ -103,11 +154,9 @@ const GameLibrary = () => {
                 })
         );
 
-        // Optional: Wait for all images to load (or fail) before doing something
         try {
             await Promise.allSettled(preloadPromises.current);
         } catch (err) {
-            // Handle any unexpected errors
             console.warn('Error in image preloading:', err);
         }
     };
@@ -180,6 +229,8 @@ const GameLibrary = () => {
             setRefreshing(true);
             try {
                 await refreshGames(true);
+                // Also refresh subscription status
+                await checkUserSubscription();
                 
                 // Clear cache and reinitialize states on refresh
                 imageCache.clear();
@@ -235,16 +286,32 @@ const GameLibrary = () => {
     }, [handlePullEnd]);
 
     const handleGameClick = async (game) => {
+        // Game ID 1 is always free
         if (game.id === 1) {
             navigate(`/games/${game.id}`);
             return;
         }
 
+        // Check authentication for other games
         if (!isAuthenticated) {
             navigate('/register');
             return;
         }
 
+        // Check subscription status from the database
+        if (!hasSubscription) {
+            // Redirect to subscription page with return URL
+            navigate('/subscription', { 
+                state: { 
+                    from: '/library',
+                    gameId: game.id,
+                    message: 'Subscribe to unlock all premium games!' 
+                } 
+            });
+            return;
+        }
+
+        // If subscribed, navigate to the game
         navigate(`/games/${game.id}`);
     };
 
@@ -333,13 +400,21 @@ const GameLibrary = () => {
                     games.map((game) => {
                         const imageState = imageStates[game.id] || { loading: true, loaded: false, error: false };
                         const showSkeleton = imageState.loading || !imageState.loaded;
+                        const isLocked = game.id !== 1 && !hasSubscription && !checkingSubscription;
                         
                         return (
                             <div 
                                 key={game.id} 
-                                className="game-card"
+                                className={`game-card ${isLocked ? 'locked' : ''}`}
                                 onClick={() => handleGameClick(game)}
                             >
+                                {/* Lock Overlay for locked games */}
+                                {isLocked && (
+                                    <div className="game-lock-overlay">
+                                        <IoLockClosed className="lock-icon" />
+                                    </div>
+                                )}
+                                
                                 {/* Image Container */}
                                 <div className="game-card-image-container">
                                     {/* Game Image - hidden until loaded */}
@@ -367,6 +442,13 @@ const GameLibrary = () => {
                                         >
                                             {game?.gameName?.charAt(0).toUpperCase() || '?'}
                                         </div>
+                                    )}
+                                </div>
+                                
+                                {/* Game Name Display */}
+                                <div className="game-name-container">
+                                    {game.id === 1 && (
+                                        <span className="game-name">{game.gameName}</span>
                                     )}
                                 </div>
                                 

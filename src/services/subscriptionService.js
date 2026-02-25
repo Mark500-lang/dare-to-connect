@@ -71,8 +71,7 @@ class SubscriptionService {
         const packageMap = {
             1: '$rc_weekly',    // your 1-week package
             2: '$rc_monthly',   // your 1-month package
-            3: '$rc_monthly',   // most popular (adjust if different)
-            4: '$rc_annual',    // best value / yearly
+            3: '$rc_annual',    // best value / yearly
         };
         return packageMap[packageId] || null;
     }
@@ -221,10 +220,21 @@ class SubscriptionService {
     async getUserSubscription() {
         try {
             const accessToken = authService.getAccessToken();
+            
+            // Debug log to check if token exists
+            console.log('Access Token for subscription:', accessToken ? 'Present' : 'Missing');
+            
+            if (!accessToken) {
+                console.error('No access token available');
+                return null;
+            }
+
             const requestData = buildRequestBody({ 
                 hashedKey: API_CONFIG.API_KEY,
-                accessToken 
+                accessToken // Make sure this is being sent correctly
             });
+
+            console.log('Sending subscription request with token');
 
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.GET_SUBSCRIPTION}`, {
                 method: 'POST',
@@ -234,8 +244,18 @@ class SubscriptionService {
 
             const result = await handleApiResponse(response, 'getSubscription');
             
+            // Log the raw result to see what's coming back
+            console.log('Subscription API result:', result);
+            
+            // Based on your Subscriptions model, the response structure might be different
+            // The checkSubscriptionDetails method returns an array with packageId, packageName, status, fromDate, toDate
             if (result && result.subscription) {
                 return result.subscription;
+            }
+            
+            // If the API returns the subscription data directly
+            if (result && (result.packageId !== undefined || result.status)) {
+                return result;
             }
             
             return null;

@@ -9,7 +9,8 @@ import {
   Box,
   Typography,
   Container,
-  Paper
+  Paper,
+  Link
 } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 import subscriptionService from '../services/subscriptionService';
@@ -192,11 +193,11 @@ const handleRestorePurchases = async () => {
     <div className="subscriptions-page">
       <div className="subscriptions-header">
         <IoIosArrowBack 
-                    aria-label="Go back" 
-                    size={24} 
-                    color="#000000ff" 
-                    onClick={() => navigate("/library")} 
-                    className="back-icon" />
+          aria-label="Go back" 
+          size={24} 
+          color="#000000ff" 
+          onClick={() => navigate("/library")} 
+          className="back-icon" />
         <span className="header-title">My Subscription</span>
       </div>
 
@@ -313,25 +314,51 @@ const handleRestorePurchases = async () => {
               </Typography>
             )}
             
-            <Typography variant="body2" className="subscribe-note" color="text.secondary">
-              By subscribing, you agree to our Terms of Service and Privacy Policy
-            </Typography>
+            {/* Restore Purchases */}
+            <Box className="restore-section">
+              <Button
+                variant="text"
+                size="small"
+                onClick={handleRestorePurchases}
+                disabled={loading}
+              >
+                Restore Purchases
+              </Button>
+            </Box>
+
+            {/* Legal Footer with Privacy Policy and Terms of Service Links - Apple Compliance */}
+            <Box className="legal-footer">
+              <Typography variant="caption" color="text.secondary" align="center" className="legal-text">
+                By subscribing, you agree to our{' '}
+                <Link 
+                  href="https://daretoconnectgames.com/privacy-policy" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="legal-link"
+                  underline="hover"
+                >
+                  Privacy Policy
+                </Link>
+                {' '}and{' '}
+                <Link 
+                  href="https://daretoconnectgames.com/privacy-policy" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="legal-link"
+                  underline="hover"
+                >
+                  Terms of Service
+                </Link>
+              </Typography>
+              <Typography variant="caption" color="text.secondary" align="center" className="renewal-text">
+                Subscription automatically renews unless auto-renew is turned off at least 24-hours before the end of the current period.
+              </Typography>
+              <Typography variant="caption" color="text.secondary" align="center" className="manage-text">
+                You can manage your subscriptions in your Account Settings after purchase.
+              </Typography>
+            </Box>
           </Box>
         )}
-
-        {/* Restore Purchases */}
-        {
-          <Box className="restore-section">
-            <Button
-              variant="text"
-              size="small"
-              onClick={handleRestorePurchases}
-              disabled={loading}
-            >
-              Restore Purchases
-            </Button>
-          </Box>
-        }
       </Container>
 
       {/* Success/Error Messages */}
