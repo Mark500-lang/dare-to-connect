@@ -9,7 +9,7 @@ workflows:
         XCODE_SCHEME: "App"
         NODE_VERSION: "22.x"
         COCOAPODS_VERSION: "1.15.2"
-        DEVELOPMENT_TEAM: "H9A4H444G4"  # Replace with your actual team ID
+        DEVELOPMENT_TEAM: "H9A4H444G4"
         BUNDLE_ID: "daretoconnect.app.mobile"
         CI: "false"
         DISABLE_ESLINT_PLUGIN: "true"
@@ -265,7 +265,7 @@ workflows:
           # Verify it was updated
           echo "=== Deployment target check ==="
           grep "IPHONEOS_DEPLOYMENT_TARGET" App.xcodeproj/project.pbxproj
-          
+
           # FIX 2: Set CODE_SIGN_IDENTITY to Distribution (not Development)
           sed -i '' \
             's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = "iPhone Distribution"/g' \
@@ -455,38 +455,52 @@ workflows:
         script: |
           set -ex
           cd ios/App
-          
+
           echo "=== Exporting IPA ==="
-          
-          # Create export options plist
+
+          # Create export options plist with explicit provisioning profile
           cat > build/exportOptions.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
               <key>method</key>
-              <string>app-store</string>
+              <string>app-store-connect</string>
               <key>teamID</key>
-              <string>$DEVELOPMENT_TEAM</string>
+              <string>$TEAM_IDENTIFIER</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>signingCertificate</key>
+              <string>iPhone Distribution</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>daretoconnect.app.mobile</key>
+                  <string>$PROFILE_UUID</string>
+              </dict>
               <key>uploadSymbols</key>
               <true/>
+              <key>uploadBitcode</key>
+              <false/>
           </dict>
           </plist>
           EOF
-          
-          # Export IPA
+
+          echo "=== Export options ==="
+          cat build/exportOptions.plist
+
           xcodebuild -exportArchive \
             -archivePath build/App.xcarchive \
             -exportPath build/ipa \
-            -exportOptionsPlist build/exportOptions.plist \
-            -allowProvisioningUpdates
-          
+            -exportOptionsPlist build/exportOptions.plist
+
           if [ ! -f "build/ipa/App.ipa" ]; then
-            echo "❌ IPA export failed"
+            echo "❌ IPA export failed - checking for any ipa file"
+            find build/ipa -name "*.ipa" 2>/dev/null || echo "No IPA files found"
             exit 1
           fi
-          
+
           echo "✅ IPA exported successfully"
+          echo "📱 IPA size: $(du -h build/ipa/App.ipa | cut -f1)"
 
       # PHASE 14: VALIDATION AND ARTIFACT PREPARATION
       - name: Validate Build and Prepare Artifacts
