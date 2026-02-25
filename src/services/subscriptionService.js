@@ -67,11 +67,12 @@ class SubscriptionService {
     }
 
     // Map your backend package IDs to RevenueCat product IDs
-    getRevenueCatProductId(packageId) {
+    getRevenueCatPackageIdentifier(packageId) {
         const packageMap = {
-            1: '$rc_weekly',    // your 1-week package
-            2: '$rc_monthly',   // your 1-month package
-            3: '$rc_annual',    // best value / yearly
+            1: '$rc_weekly',   // com.daretoconnect.bronze - 1 week
+            2: '$rc_monthly',  // com.daretoconnect.silver - 1 month
+            3: '$rc_annual',   // com.daretoconnect.gold   - 1 year
+            4: '$rc_annual',   // fallback
         };
         return packageMap[packageId] || null;
     }
@@ -148,18 +149,18 @@ class SubscriptionService {
             }
 
             // Get the RC package identifier for this backend package ID
-            const rcProductId = this.getRevenueCatProductId(packageId);
+            const rcPackageIdentifier = this.getRevenueCatPackageIdentifier(packageId);
             if (!rcPackageIdentifier) {
                 throw new Error('No package mapping found for packageId: ' + packageId);
             }
 
             // Find the package using RC identifier
             const packageToPurchase = currentOffering.availablePackages.find(
-                pkg => pkg.product?.productIdentifier === rcProductId
+                pkg => pkg.identifier === rcPackageIdentifier
             );
 
             if (!packageToPurchase) {
-                throw new Error(`Product "${rcProductId}" not found in offering`);
+                throw new Error(`Package "${rcPackageIdentifier}" not found in offering`);
             }
 
             // Generate payment reference before purchase
@@ -322,4 +323,3 @@ class SubscriptionService {
 // Create and export singleton instance
 const subscriptionService = new SubscriptionService();
 export default subscriptionService;
-packageToPurchase
