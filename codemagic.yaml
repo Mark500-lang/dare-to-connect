@@ -399,9 +399,9 @@ workflows:
           echo "=== Adding Required Privacy Descriptions ==="
           PLIST_PATH="Info.plist"
           
-          # Add microphone usage description for voice recording
-          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string 'Used for voice recording in games and activities'" "$PLIST_PATH" 2>/dev/null || \
-          /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription 'Used for voice recording in games and activities'" "$PLIST_PATH"
+          # Ensure app does NOT render under status bar by default
+          /usr/libexec/PlistBuddy -c "Add :UIViewControllerBasedStatusBarAppearance bool false" "$PLIST_PATH" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :UIViewControllerBasedStatusBarAppearance false" "$PLIST_PATH"
           
           echo "✅ Privacy descriptions added"
 

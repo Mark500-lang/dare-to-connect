@@ -1,6 +1,6 @@
 {
   "name": "dare-to-connect",
-  "version": "0.1.0",
+  "version": "2.3",
   "private": true,
   "dependencies": {
     "@capacitor/android": "^8.0.2",

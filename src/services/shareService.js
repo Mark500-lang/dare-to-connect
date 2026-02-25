@@ -2,7 +2,7 @@ class ShareService {
     constructor() {
         this.appLinks = {
             playStore: 'https://play.google.com/store/apps/details?id=com.daretoconnect.games',
-            appStore: 'https://apps.apple.com/app/idYOUR_APP_ID', // Replace with your iOS App ID
+            appStore: 'https://apps.apple.com/app/6740762957', // Replace with your iOS App ID
             appGallery: 'https://appgallery.huawei.com/app/CXXXXXXX', // Replace with your Huawei AppGallery ID
         };
         
@@ -30,10 +30,13 @@ class ShareService {
     // Main share function
     async shareApp() {
         const appLink = this.getAppLink();
+        
+        // CRITICAL FIX: Use ONLY text field, do NOT include URL separately
+        // This prevents the share sheet from trying to open a preview/referral page
         const shareData = {
             title: 'Dare to Connect Games',
             text: `${this.shareText} ${appLink}`,
-            url: appLink,
+            // REMOVED: url field - this was causing the referral page to open
         };
 
         try {
@@ -45,7 +48,11 @@ class ShareService {
 
             // Method 2: Capacitor Share Plugin
             if (window.Capacitor && window.Capacitor.Plugins?.Share) {
-                await window.Capacitor.Plugins.Share.share(shareData);
+                await window.Capacitor.Plugins.Share.share({
+                    title: shareData.title,
+                    text: shareData.text,
+                    dialogTitle: 'Share with' // Android only
+                });
                 return { success: true, method: 'capacitor-share' };
             }
 
@@ -53,10 +60,10 @@ class ShareService {
             if (window.plugins?.socialsharing) {
                 return new Promise((resolve) => {
                     window.plugins.socialsharing.share(
-                        shareData.text,
-                        shareData.title,
-                        null,
-                        shareData.url,
+                        shareData.text, // message
+                        shareData.title, // subject
+                        null, // image
+                        null, // REMOVED: link - prevents referral page
                         () => resolve({ success: true, method: 'cordova-social-sharing' }),
                         (error) => resolve({ success: false, method: 'cordova-social-sharing', error })
                     );
@@ -95,7 +102,7 @@ class ShareService {
     shareViaAndroidBridge(shareData) {
         if (window.Android && window.Android.shareApp) {
             try {
-                window.Android.shareApp(shareData.text, shareData.title, shareData.url);
+                window.Android.shareApp(shareData.text, shareData.title);
                 return { success: true, method: 'android-bridge' };
             } catch (error) {
                 console.error('Android bridge error:', error);
@@ -108,7 +115,10 @@ class ShareService {
     shareViaIOSBridge(shareData) {
         if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.shareHandler) {
             try {
-                window.webkit.messageHandlers.shareHandler.postMessage(shareData);
+                window.webkit.messageHandlers.shareHandler.postMessage({
+                    text: shareData.text,
+                    title: shareData.title
+                });
                 return { success: true, method: 'ios-bridge' };
             } catch (error) {
                 console.error('iOS bridge error:', error);
@@ -121,28 +131,30 @@ class ShareService {
     fallbackShare(shareData) {
         return new Promise((resolve) => {
             if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(shareData.url)
+                navigator.clipboard.writeText(shareData.text)
                     .then(() => {
                         // You can trigger a toast notification here
                         if (window.showToast) {
-                            window.showToast('Play Store link copied to clipboard!');
+                            window.showToast('App link copied to clipboard!');
                         } else {
-                            alert('Play Store link copied to clipboard!');
+                            alert('App link copied to clipboard!');
                         }
                         resolve({ success: true, method: 'clipboard' });
                     })
                     .catch(() => {
-                        window.open(shareData.url, '_blank');
-                        resolve({ success: true, method: 'open-new-tab' });
+                        // If clipboard fails, just show the text in an alert
+                        alert(shareData.text);
+                        resolve({ success: true, method: 'alert' });
                     });
             } else {
-                window.open(shareData.url, '_blank');
-                resolve({ success: true, method: 'open-new-tab' });
+                // Last resort: show alert with the text
+                alert(shareData.text);
+                resolve({ success: true, method: 'alert' });
             }
         });
     }
 
-    // Platform-specific share functions
+    // Platform-specific share functions - these intentionally open new windows
     shareViaWhatsApp() {
         const appLink = this.getAppLink();
         const message = encodeURIComponent(`${this.shareText} ${appLink}`);

@@ -47,7 +47,7 @@ function App() {
             <Route path="account/edit" element={<EditProfile />} />
             <Route path="account/password" element={<ChangePassword />} />
             <Route path="account/delete" element={<DeleteAccount />} />
-            <Route path="referral" element={<TellAFriend/>} />
+            {/* <Route path="referral" element={<TellAFriend/>} /> */}
             <Route path="help" element={<NeedHelp/>} />
             
             {/* GAME PAGES */}
