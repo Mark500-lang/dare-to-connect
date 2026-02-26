@@ -68,3 +68,21 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
+## Summary of the Flow
+
+User taps Subscribe
+       ↓
+initiatePayment(packageId) → backend creates pending Payments record → returns ref_no
+       ↓
+Purchases.purchasePackage() → Apple shows payment sheet → user confirms
+       ↓
+RevenueCat confirms purchase → returns customerInfo
+       ↓
+recordSubscription(packageId, ref_no, customerInfo) → backend:
+    - marks Payment as completed
+    - deactivates old subscription
+    - creates new Subscriptions record with expiry date
+       ↓
+User sees success, navigates to /library with subscription active
+```

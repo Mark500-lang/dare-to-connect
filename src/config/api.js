@@ -10,6 +10,7 @@ export const API_CONFIG = {
         GET_PROFILE: '/getProfile',
         GET_SUBSCRIPTION: '/getSubscription',
         INITIATE_PAYMENT: '/initiatePayment',
+        RECORD_SUBSCRIPTION: '/recordSubscription',
         COUNTRIES: '/getCountries',
         CITIES: '/getCities',
         UPDATE_PROFILE: '/updateProfile',

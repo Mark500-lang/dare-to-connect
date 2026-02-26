@@ -131,61 +131,72 @@ class SubscriptionService {
                 throw new Error('In-app purchases not available on this platform.');
             }
 
+            // Step 1: Get offerings
             const offerings = await Purchases.getOfferings();
             const currentOffering = offerings?.current;
 
-            // Debug log — check this in Xcode console during TestFlight
-            console.log('RC Offerings:', JSON.stringify({
+            console.log('Offerings debug:', JSON.stringify({
                 currentId: currentOffering?.identifier,
                 packages: currentOffering?.availablePackages?.map(p => ({
                     id: p.identifier,
                     productId: p.product?.productIdentifier,
                     price: p.product?.priceString
                 }))
-            }, null, 2));
+            }));
 
             if (!currentOffering?.availablePackages?.length) {
                 throw new Error('No subscription offerings available');
             }
 
-            // Get the RC package identifier for this backend package ID
+            // Step 2: Find the right package
             const rcPackageIdentifier = this.getRevenueCatPackageIdentifier(packageId);
             if (!rcPackageIdentifier) {
-                throw new Error('No package mapping found for packageId: ' + packageId);
+                throw new Error('No package mapping for packageId: ' + packageId);
             }
 
-            // Find the package using RC identifier
             const packageToPurchase = currentOffering.availablePackages.find(
                 pkg => pkg.identifier === rcPackageIdentifier
             );
 
             if (!packageToPurchase) {
-                throw new Error(`Package "${rcPackageIdentifier}" not found in offering`);
+                throw new Error(`RC package "${rcPackageIdentifier}" not found`);
             }
 
-            // Generate payment reference before purchase
+            // Step 3: Generate payment reference (creates pending record)
             const paymentRefData = await this.initiatePayment(packageId);
             if (!paymentRefData?.ref_no) {
                 throw new Error('Failed to generate payment reference');
             }
+            
+            console.log('Payment reference generated:', paymentRefData.ref_no);
 
-            // Correct v12 SDK purchase call
+            // Step 4: Execute the purchase via RevenueCat
             const purchaseResult = await Purchases.purchasePackage({
                 aPackage: packageToPurchase
             });
 
-            if (purchaseResult?.customerInfo) {
-                return {
-                    success: true,
-                    paymentRef: paymentRefData.ref_no,
-                    packageId,
-                    customerInfo: purchaseResult.customerInfo
-                };
+            if (!purchaseResult?.customerInfo) {
+                throw new Error('Purchase failed - no customer info returned');
             }
 
-            throw new Error('Purchase failed or was cancelled');
+            console.log('Purchase successful, recording subscription...');
+
+            // Step 5: Record the completed subscription in your backend
+            await this.recordSubscription(
+                packageId,
+                paymentRefData.ref_no,
+                purchaseResult.customerInfo
+            );
+
+            return {
+                success: true,
+                paymentRef: paymentRefData.ref_no,
+                packageId,
+                customerInfo: purchaseResult.customerInfo
+            };
 
         } catch (error) {
+            console.error('purchasePackage error:', error);
             if (error.code === 'E_USER_CANCELLED') throw new Error('Purchase was cancelled');
             if (error.code === 'E_NETWORK_ERROR') throw new Error('Network error. Please check your connection.');
             if (error.code === 'E_PRODUCT_ALREADY_PURCHASED') throw new Error('You already own this subscription');
@@ -193,15 +204,72 @@ class SubscriptionService {
         }
     }
 
+    // record subscription in backend after successful purchase
+    async recordSubscription(packageId, refNo, customerInfo) {
+        try {
+            const accessToken = authService.getAccessToken();
+
+            // Extract the transaction ID from RevenueCat customer info
+            const activeEntitlements = customerInfo?.entitlements?.active || {};
+            const entitlementValues = Object.values(activeEntitlements);
+            const latestTransaction = entitlementValues[0];
+
+            const requestData = {
+                hashedKey: API_CONFIG.API_KEY,
+                accessToken,
+                packageId: parseInt(packageId),
+                refNo,
+                transactionId: latestTransaction?.productIdentifier || '',
+                originalTransactionId: latestTransaction?.originalPurchaseDate || '',
+                expiryDate: latestTransaction?.expirationDate || null,
+            };
+
+            console.log('Recording subscription:', requestData);
+
+            const response = await fetch(`${API_CONFIG.BASE_URL}/recordSubscription`, {
+                method: 'POST',
+                headers: API_CONFIG.HEADERS,
+                body: JSON.stringify(requestData)
+            });
+
+            const responseText = await response.text();
+            console.log('recordSubscription response:', responseText);
+
+            const data = JSON.parse(responseText);
+            
+            if (data.status?.toLowerCase() !== 'ok') {
+                // Don't throw here - purchase already succeeded
+                // Just log the error, user has paid
+                console.error('Failed to record subscription in backend:', data.message);
+            }
+
+            return data;
+        } catch (error) {
+            // Don't throw - the Apple purchase already went through
+            // Log it for investigation but don't fail the user
+            console.error('recordSubscription error (non-fatal):', error.message);
+        }
+    }
+
     // Use existing backend endpoint to initiate payment
     async initiatePayment(packageId) {
         try {
             const accessToken = authService.getAccessToken();
-            const requestData = buildRequestBody({
+            
+            // Debug - log exactly what we're sending
+            console.log('initiatePayment called with:', { packageId, hasToken: !!accessToken });
+            
+            if (!accessToken) {
+                throw new Error('No access token - user not logged in');
+            }
+
+            const requestData = {
                 hashedKey: API_CONFIG.API_KEY,
                 accessToken,
-                packageId
-            });
+                packageId: parseInt(packageId), // Ensure it's a number, not string
+            };
+
+            console.log('Sending to initiatePayment:', requestData);
 
             const response = await fetch(`${API_CONFIG.BASE_URL}/initiatePayment`, {
                 method: 'POST',
@@ -209,10 +277,34 @@ class SubscriptionService {
                 body: JSON.stringify(requestData)
             });
 
-            const result = await handleApiResponse(response, 'initiatePayment');
-            return result; // Should contain ref_no
+            // Log raw response before processing
+            const responseText = await response.text();
+            console.log('initiatePayment raw response:', responseText);
+
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (e) {
+                throw new Error('Invalid response from server: ' + responseText);
+            }
+
+            // Check backend status directly
+            if (data.status?.toLowerCase() !== 'ok') {
+                throw new Error(data.message || 'initiatePayment failed: ' + JSON.stringify(data));
+            }
+
+            const result = data.result;
+            console.log('initiatePayment result:', result);
+
+            // Handle whatever structure Payments::generateRandomRef returns
+            if (result?.ref_no) return result;
+            if (result?.refNo) return { ref_no: result.refNo };
+            if (typeof result === 'string') return { ref_no: result };
+
+            throw new Error('No ref_no in response: ' + JSON.stringify(result));
+
         } catch (error) {
-            console.error('Error initiating payment:', error);
+            console.error('initiatePayment error:', error.message);
             throw error;
         }
     }
