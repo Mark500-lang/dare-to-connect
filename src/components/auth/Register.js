@@ -251,188 +251,190 @@ const Register = () => {
                 <h1 className='game-details-title'>Register</h1>
             </div>
 
-            <p className="auth-title">Fill in your details to continue!</p>
+            <div className="auth-content">
+                <p className="auth-title">Fill in your details to continue!</p>
 
-            <form className="auth-form" onSubmit={handleSubmit}>
-                {/* ROW 1 */}
-                <div className="row">
+                <form className="auth-form" onSubmit={handleSubmit}>
+                    {/* ROW 1 */}
+                    <div className="row">
+                        <TextField
+                            label="First Name*"
+                            variant="standard"
+                            name="firstName"
+                            fullWidth
+                            value={formData.firstName}
+                            onChange={handleChange}
+                            sx={muiInputSx}
+                            disabled={loading}
+                            error={!!formErrors.firstName}
+                            helperText={formErrors.firstName}
+                        />
+                        <TextField
+                            label="Last Name*"
+                            variant="standard"
+                            name="lastName"
+                            fullWidth
+                            value={formData.lastName}
+                            onChange={handleChange}
+                            sx={muiInputSx}
+                            disabled={loading}
+                            error={!!formErrors.lastName}
+                            helperText={formErrors.lastName}
+                        />
+                    </div>
+
                     <TextField
-                        label="First Name*"
+                        label="Email Address*"
                         variant="standard"
-                        name="firstName"
+                        name="email"
+                        type="email"
                         fullWidth
-                        value={formData.firstName}
+                        value={formData.email}
                         onChange={handleChange}
                         sx={muiInputSx}
                         disabled={loading}
-                        error={!!formErrors.firstName}
-                        helperText={formErrors.firstName}
+                        error={!!formErrors.email}
+                        helperText={formErrors.email}
                     />
-                    <TextField
-                        label="Last Name*"
-                        variant="standard"
-                        name="lastName"
-                        fullWidth
-                        value={formData.lastName}
-                        onChange={handleChange}
-                        sx={muiInputSx}
-                        disabled={loading}
-                        error={!!formErrors.lastName}
-                        helperText={formErrors.lastName}
-                    />
-                </div>
 
-                <TextField
-                    label="Email Address*"
-                    variant="standard"
-                    name="email"
-                    type="email"
-                    fullWidth
-                    value={formData.email}
-                    onChange={handleChange}
-                    sx={muiInputSx}
-                    disabled={loading}
-                    error={!!formErrors.email}
-                    helperText={formErrors.email}
-                />
-
-                {/* Country and City Selection */}
-                <div className="row">
-                    <FormControl fullWidth variant="standard" sx={muiInputSx} disabled={loading || loadingCountries}>
-                        <InputLabel>Country*</InputLabel>
-                        <Select
-                            name="countryId"
-                            value={formData.countryId}
-                            onChange={handleChange}
-                            label="Country*"
-                            error={!!formErrors.countryId}
-                        >
-                            <MenuItem value="">
-                                <em>Select Country</em>
-                            </MenuItem>
-                            {countries.map((country) => (
-                                <MenuItem key={country.id} value={country.id}>
-                                    {country.name}
+                    {/* Country and City Selection */}
+                    <div className="row">
+                        <FormControl fullWidth variant="standard" sx={muiInputSx} disabled={loading || loadingCountries}>
+                            <InputLabel>Country*</InputLabel>
+                            <Select
+                                name="countryId"
+                                value={formData.countryId}
+                                onChange={handleChange}
+                                label="Country*"
+                                error={!!formErrors.countryId}
+                            >
+                                <MenuItem value="">
+                                    <em>Select Country</em>
                                 </MenuItem>
-                            ))}
-                        </Select>
-                        {formErrors.countryId && (
-                            <div style={{ color: '#d32f2f', fontSize: '12px', marginTop: '4px' }}>
-                                {formErrors.countryId}
-                            </div>
-                        )}
-                    </FormControl>
-
-                    <FormControl fullWidth variant="standard" sx={muiInputSx} disabled={loading || loadingCities || !formData.countryId}>
-                        <InputLabel>City*</InputLabel>
-                        <Select
-                            name="cityId"
-                            value={formData.cityId}
-                            onChange={handleChange}
-                            label="City*"
-                            error={!!formErrors.cityId}
-                        >
-                            <MenuItem value="">
-                                <em>Select City</em>
-                            </MenuItem>
-                            {cities.map((city) => (
-                                <MenuItem key={city.id} value={city.id}>
-                                    {city.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                        {formErrors.cityId && (
-                            <div style={{ color: '#d32f2f', fontSize: '12px', marginTop: '4px' }}>
-                                {formErrors.cityId}
-                            </div>
-                        )}
-                    </FormControl>
-                </div>
-
-                <TextField
-                    label="Mobile No.*"
-                    variant="standard"
-                    name="phone"
-                    fullWidth
-                    value={formData.phone}
-                    onChange={handleChange}
-                    sx={muiInputSx}
-                    disabled={loading}
-                    error={!!formErrors.phone}
-                    helperText={formErrors.phone}
-                />
-
-                <TextField
-                    label="Password*"
-                    variant="standard"
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    fullWidth
-                    value={formData.password}
-                    onChange={handleChange}
-                    sx={muiInputSx}
-                    disabled={loading}
-                    error={!!formErrors.password}
-                    helperText={formErrors.password}
-                    InputProps={{
-                        endAdornment: (
-                        <InputAdornment position="end">
-                            {showPassword ? (
-                            <FaEyeSlash
-                                className="eye-icon"
-                                onClick={() => !loading && setShowPassword(false)}
-                                style={{ cursor: loading ? 'not-allowed' : 'pointer' }}
-                            />
-                            ) : (
-                            <FaEye
-                                className="eye-icon"
-                                onClick={() => !loading && setShowPassword(true)}
-                                style={{ cursor: loading ? 'not-allowed' : 'pointer' }}
-                            />
+                                {countries.map((country) => (
+                                    <MenuItem key={country.id} value={country.id}>
+                                        {country.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                            {formErrors.countryId && (
+                                <div style={{ color: '#d32f2f', fontSize: '12px', marginTop: '4px' }}>
+                                    {formErrors.countryId}
+                                </div>
                             )}
-                        </InputAdornment>
-                        )
-                    }}
-                />
+                        </FormControl>
 
-                <TextField
-                    label="Confirm Password*"
-                    variant="standard"
-                    type={showPassword ? 'text' : 'password'}
-                    name="confirmPassword"
-                    fullWidth
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    sx={muiInputSx}
-                    disabled={loading}
-                    error={!!formErrors.confirmPassword}
-                    helperText={formErrors.confirmPassword}
-                />
+                        <FormControl fullWidth variant="standard" sx={muiInputSx} disabled={loading || loadingCities || !formData.countryId}>
+                            <InputLabel>City*</InputLabel>
+                            <Select
+                                name="cityId"
+                                value={formData.cityId}
+                                onChange={handleChange}
+                                label="City*"
+                                error={!!formErrors.cityId}
+                            >
+                                <MenuItem value="">
+                                    <em>Select City</em>
+                                </MenuItem>
+                                {cities.map((city) => (
+                                    <MenuItem key={city.id} value={city.id}>
+                                        {city.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                            {formErrors.cityId && (
+                                <div style={{ color: '#d32f2f', fontSize: '12px', marginTop: '4px' }}>
+                                    {formErrors.cityId}
+                                </div>
+                            )}
+                        </FormControl>
+                    </div>
 
-                <div className="auth-privacy-text">
-                    <p>By creating an account you agree to our <span><a href="https://www.privacypolicies.com/live/396845b8-e470-4bed-8cbb-5432ab867986"
-                    className="privacy-link"
-                    target="_blank"
-                    rel="noopener noreferrer">Terms of Use</a></span>  and <span><a href="https://www.privacypolicies.com/live/396845b8-e470-4bed-8cbb-5432ab867986"
-                    className="privacy-link"
-                    target="_blank"
-                    rel="noopener noreferrer">Privacy Policy</a></span></p>
-                </div>
-                
-                <button 
-                    className="primary-btn" 
-                    type="submit"
-                    disabled={loading}
-                >
-                    {loading ? (
-                        <span stylibraryle={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                            <CircularProgress size={16} color="inherit" />
-                            SIGNING UP...
-                        </span>
-                    ) : 'Sign Up'}
-                </button>
-            </form>
+                    <TextField
+                        label="Mobile No.*"
+                        variant="standard"
+                        name="phone"
+                        fullWidth
+                        value={formData.phone}
+                        onChange={handleChange}
+                        sx={muiInputSx}
+                        disabled={loading}
+                        error={!!formErrors.phone}
+                        helperText={formErrors.phone}
+                    />
 
+                    <TextField
+                        label="Password*"
+                        variant="standard"
+                        type={showPassword ? 'text' : 'password'}
+                        name="password"
+                        fullWidth
+                        value={formData.password}
+                        onChange={handleChange}
+                        sx={muiInputSx}
+                        disabled={loading}
+                        error={!!formErrors.password}
+                        helperText={formErrors.password}
+                        InputProps={{
+                            endAdornment: (
+                            <InputAdornment position="end">
+                                {showPassword ? (
+                                <FaEyeSlash
+                                    className="eye-icon"
+                                    onClick={() => !loading && setShowPassword(false)}
+                                    style={{ cursor: loading ? 'not-allowed' : 'pointer' }}
+                                />
+                                ) : (
+                                <FaEye
+                                    className="eye-icon"
+                                    onClick={() => !loading && setShowPassword(true)}
+                                    style={{ cursor: loading ? 'not-allowed' : 'pointer' }}
+                                />
+                                )}
+                            </InputAdornment>
+                            )
+                        }}
+                    />
+
+                    <TextField
+                        label="Confirm Password*"
+                        variant="standard"
+                        type={showPassword ? 'text' : 'password'}
+                        name="confirmPassword"
+                        fullWidth
+                        value={formData.confirmPassword}
+                        onChange={handleChange}
+                        sx={muiInputSx}
+                        disabled={loading}
+                        error={!!formErrors.confirmPassword}
+                        helperText={formErrors.confirmPassword}
+                    />
+
+                    <div className="auth-privacy-text">
+                        <p>By creating an account you agree to our <span><a href="https://daretoconnectgames.com/privacy-policy"
+                        className="privacy-link"
+                        target="_blank"
+                        rel="noopener noreferrer">Privacy Policy</a></span></p>
+                        {/* <span><a href="https://daretoconnectgames.com/privacy-policy"
+                        className="privacy-link"
+                        target="_blank"
+                        rel="noopener noreferrer">Terms of Use</a></span>  and  */}
+                        </div>
+                    
+                    <button 
+                        className="primary-btn" 
+                        type="submit"
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <span stylibraryle={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                <CircularProgress size={16} color="inherit" />
+                                SIGNING UP...
+                            </span>
+                        ) : 'Sign Up'}
+                    </button>
+                </form>
+            </div>
             {/* Error Snackbar */}
             <Snackbar 
                 open={!!error} 

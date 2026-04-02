@@ -4,10 +4,12 @@
   padding-bottom: 40px;
 }
 
+/* ── Header ── */
 .subscriptions-header {
   display: flex;
   align-items: center;
   padding: 20px;
+  padding-top: calc(env(safe-area-inset-top) + 20px);
   position: fixed;
   top: 0;
   left: 0;
@@ -29,18 +31,19 @@
 }
 
 .subscriptions-header .header-title {
-    font-size: 20px;
-    font-weight: 600;
-    margin: 0;
-    color: #333;
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  color: #333;
 }
 
+/* ── Container ── */
 .subscriptions-container {
   padding: 20px;
   margin-top: 80px;
 }
 
-/* App Store Style Header */
+/* ── Page Title ── */
 .app-store-header {
   text-align: center;
   margin-bottom: 20px;
@@ -53,7 +56,7 @@
   margin-bottom: 8px !important;
 }
 
-/* VERTICAL Package Cards Container */
+/* ── Package Cards Container ── */
 .packages-vertical-container {
   margin: 10px 0;
   padding: 0;
@@ -66,10 +69,10 @@
   width: 100%;
 }
 
-/* VERTICAL Package Card */
+/* ── Package Card ── */
 .package-card-vertical {
   width: 100%;
-  padding: 0px;
+  padding: 0;
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -98,7 +101,7 @@
   border-color: #c0c0c0;
 }
 
-/* Package Badges */
+/* ── Badges ── */
 .package-badge {
   position: absolute;
   top: -8px;
@@ -123,7 +126,7 @@
   color: #333;
 }
 
-/* VERTICAL Package Content */
+/* ── Package Content ── */
 .package-content-vertical {
   display: flex;
   flex-direction: column;
@@ -149,7 +152,7 @@
   color: #666;
 }
 
-/* VERTICAL Price Section */
+/* ── Price Section ── */
 .price-section-vertical {
   display: flex;
   align-items: flex-end;
@@ -190,7 +193,7 @@
   line-height: 1;
 }
 
-/* VERTICAL Selection Indicator */
+/* ── Selection Dot ── */
 .selection-indicator-vertical {
   display: flex;
   justify-content: center;
@@ -213,7 +216,7 @@
   box-shadow: 0 0 0 2px rgba(22, 116, 162, 0.2);
 }
 
-/* Current Plan Card */
+/* ── Current Plan Card ── */
 .current-plan-card {
   background: linear-gradient(135deg, #1674a2 0%, #0d5a7d 100%);
   color: rgba(0, 0, 0, 0.774) !important;
@@ -240,33 +243,144 @@
   font-size: 16px;
 }
 
-/* Subscribe Section */
+/* ── Subscribe Section ── */
 .subscribe-section {
   margin: 25px 0 15px;
   text-align: center;
 }
 
-.subscribe-button {
-  background: linear-gradient(135deg, #1674a2 0%, #0d5a7d 100%);
-  color: white;
-  padding: 16px;
+/* ──────────────────────────────────────────────────────────
+   APPLE GUIDELINE 3.1.2 — Subscription Disclosure Block
+   Positioned ABOVE the subscribe button so all required
+   info is visible before the user commits to purchase.
+   Required content:
+     • Title of service
+     • Length of each subscription period
+     • Price (and price per unit where appropriate)
+     • Functional Privacy Policy link
+     • Functional Terms of Use (EULA) link
+     • Auto-renewal disclosure
+────────────────────────────────────────────────────────── */
+.subscription-disclosure {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
   border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.disclosure-title {
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  color: #1a1a1a;
+  display: block;
+  margin-bottom: 2px !important;
+  line-height: 1.4 !important;
+}
+
+.disclosure-subtitle {
+  font-size: 12px !important;
+  color: #666;
+  display: block;
+  margin-bottom: 12px !important;
+  line-height: 1.4 !important;
+}
+
+.disclosure-plans {
+  border-top: 1px solid #e8e8e8;
+  padding-top: 10px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.disclosure-plan-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+}
+
+.disclosure-plan-row.active .disclosure-plan-name,
+.disclosure-plan-row.active .disclosure-plan-price {
+  color: #1674a2;
   font-weight: 700;
-  font-size: 16px;
-  text-transform: none;
-  box-shadow: 0 4px 16px rgba(22, 116, 162, 0.3);
-  transition: all 0.2s ease;
+}
+
+.disclosure-plan-name {
+  font-size: 12px !important;
+  color: #444;
+  line-height: 1.4 !important;
+}
+
+.disclosure-plan-price {
+  font-size: 12px !important;
+  color: #444;
+  line-height: 1.4 !important;
+  text-align: right;
+}
+
+.disclosure-per-month {
+  font-size: 10px;
+  color: #888;
+}
+
+.disclosure-legal {
+  display: block;
+  font-size: 10px !important;
+  color: #888;
+  line-height: 1.6 !important;
+  margin-bottom: 12px !important;
+}
+
+.disclosure-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.disclosure-link {
+  font-size: 12px;
+  color: #1674a2;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.disclosure-link:hover {
+  color: #0d5a7d;
+}
+
+.disclosure-separator {
+  font-size: 11px;
+  color: #bbb;
+}
+/* ── END DISCLOSURE STYLES ── */
+
+/* ── Subscribe Button ── */
+.subscribe-button {
+  background: linear-gradient(135deg, #1674a2 0%, #0d5a7d 100%) !important;
+  color: white !important;
+  padding: 16px !important;
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  font-size: 16px !important;
+  text-transform: none !important;
+  box-shadow: 0 4px 16px rgba(22, 116, 162, 0.3) !important;
+  transition: all 0.2s ease !important;
 }
 
 .subscribe-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(22, 116, 162, 0.4);
+  box-shadow: 0 6px 20px rgba(22, 116, 162, 0.4) !important;
 }
 
 .subscribe-button:disabled {
-  background: #ccc;
-  transform: none;
-  box-shadow: none;
+  background: #ccc !important;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .current-plan-note {
@@ -276,16 +390,10 @@
   font-style: italic;
 }
 
-.subscribe-note {
-  margin-top: 10px;
-  font-size: 11px;
-  opacity: 0.8;
-}
-
-/* Restore Section */
+/* ── Restore Section ── */
 .restore-section {
   text-align: center;
-  margin: 15px 0;
+  margin-top: 12px;
 }
 
 .restore-section .MuiButton-root {
@@ -295,33 +403,7 @@
   padding: 4px 8px;
 }
 
-.restore-note {
-  display: block;
-  margin-top: 4px;
-  font-size: 11px;
-  opacity: 0.7;
-}
-
-/* Platform Info */
-.platform-info {
-  text-align: center;
-  margin-top: 20px;
-  padding-top: 15px;
-  border-top: 1px solid #e0e0e0;
-}
-
-.platform-icon {
-  margin-right: 5px;
-}
-
-.platform-note {
-  display: block;
-  margin-top: 6px;
-  font-size: 10px;
-  opacity: 0.7;
-}
-
-/* Loading States */
+/* ── Loading States ── */
 .loading-packages {
   display: flex;
   flex-direction: column;
@@ -343,29 +425,6 @@
   border-radius: 12px;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .subscriptions-container {
-    padding: 15px;
-  }
-  
-  .package-card-vertical {
-    padding: 0px;
-  }
-  
-  .package-name-vertical {
-    font-size: 15px;
-  }
-  
-  .package-price-vertical {
-    font-size: 1.6rem;
-  }
-  
-  .subscribe-button {
-    padding: 14px;
-    font-size: 15px;
-  }
-}
 .loading-container {
   display: flex;
   justify-content: center;
@@ -373,86 +432,60 @@
   min-height: 100vh;
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
 }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .subscriptions-container {
+    padding: 15px;
+  }
+
+  .package-name-vertical {
+    font-size: 15px;
+  }
+
+  .package-price-vertical {
+    font-size: 1.6rem;
+  }
+
+  .subscribe-button {
+    padding: 14px !important;
+    font-size: 15px !important;
+  }
+}
+
 @media (max-width: 480px) {
   .subscriptions-container {
     padding: 10px;
   }
-  
-  .package-card-vertical {
-    padding: 0px;
-  }
-  
+
   .package-name-vertical {
     font-size: 14px;
   }
-  
+
   .package-price-vertical {
     font-size: 1.5rem;
   }
-  
+
   .subscribe-button {
-    padding: 12px;
-    font-size: 14px;
+    padding: 12px !important;
+    font-size: 14px !important;
   }
-  
+
   .subscriptions-header {
     padding: 15px;
+    padding-top: calc(env(safe-area-inset-top) + 15px);
   }
-  
+
   .header-title {
     font-size: 16px;
   }
-}
 
-/* Legal Footer Styles - Apple Compliance */
-.legal-footer {
-  margin-top: 24px;
-  padding: 16px 0;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+  .disclosure-title {
+    font-size: 13px !important;
+  }
 
-.legal-text {
-  font-size: 11px !important;
-  line-height: 1.5 !important;
-  color: #666 !important;
-}
-
-.legal-link {
-  color: #1674a2 !important;
-  text-decoration: none;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.legal-link:hover {
-  text-decoration: underline !important;
-}
-
-.renewal-text,
-.manage-text {
-  font-size: 10px !important;
-  line-height: 1.4 !important;
-  color: #888 !important;
-}
-
-/* Restore section styling */
-.restore-section {
-  margin-top: 16px;
-  text-align: center;
-}
-
-.restore-section button {
-  color: #1674a2;
-  font-size: 13px;
-  text-transform: none;
-  font-weight: 500;
-  padding: 6px 12px;
-}
-
-.restore-section button:hover {
-  background-color: rgba(22, 116, 162, 0.04);
-  text-decoration: underline;
+  .disclosure-plan-name,
+  .disclosure-plan-price {
+    font-size: 11px !important;
+  }
 }

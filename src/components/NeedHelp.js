@@ -111,13 +111,13 @@ const NeedHelp = () => {
   };
 
   const handleWhatsappClick = () => {
-    const phoneNumber = '+254700000000'; // Replace with your support number
+    const phoneNumber = '+254745927345';
     const message = encodeURIComponent(`Hello, I need help with Dare to Connect.`);
     window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
   };
 
   const handleMailClick = () => {
-    window.location.href = 'mailto:support@daretoconnectgames.com?subject=Support Request - Dare to Connect';
+    window.location.href = 'mailto:support@papricut.com?subject=Support Request - Dare to Connect';
   };
 
   const muiInputSx = {

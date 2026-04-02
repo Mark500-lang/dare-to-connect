@@ -27,6 +27,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 40px;
 }
 
 .back-button:hover {
@@ -34,7 +35,7 @@
 }
 
 .game-details-title {
-    font-size: 20px;
+    font-size: 28px;
     font-weight: 600;
     margin: 0;
     color: #333;
@@ -62,8 +63,8 @@
 
 .game-image-container {
     width: 100%;
-    max-width: 400px;
-    height: 400px;
+    max-width: 520px;
+    height: 520px;
     border-radius: 20px;
     overflow: hidden;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
@@ -105,11 +106,11 @@
 }
 
 .start-continue-btn {
-    padding: 16px 24px;
-    font-size: 16px;
+    padding: 20px 24px;
+    font-size: 24px;
     font-weight: 600;
     border: none;
-    border-radius: 15px;
+    border-radius: 20px;
     cursor: pointer;
     transition: all 0.3s ease;
     display: flex;
@@ -151,11 +152,11 @@
     text-align: center;
     text-decoration: none;
     color: #000000;
-    font-size: 14px;
+    font-size: 20px;
     transition: color 0.3s;
 }
 /* Responsive Design */
-@media (max-width: 768px) {
+@media (max-width: 708px) {
     .game-image-container {
         max-width: 350px;
         max-height: 350px;
@@ -165,13 +166,19 @@
         padding: 14px 15px;
         font-size: 16px;
     }
+    .footer-promo-link{
+        font-size: 14px;
+    }
 }
 
 @media (max-width: 480px) {
     .game-details-header {
         padding: 15px;
     }
-    
+    .back-button {
+        padding: 6px;
+        font-size: 20px;
+    }
     .game-details-title {
         font-size: 18px;
     }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { FaArrowLeft, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { IoIosArrowBack } from "react-icons/io";
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { 
@@ -133,7 +134,7 @@ const ChangePassword = () => {
   return (
     <div className="change-password-page">
       <div className="change-password-header">
-        <FaArrowLeft onClick={() => navigate('/account')} />
+        <IoIosArrowBack  onClick={() => navigate('/account')} />
         <span>Change Password</span>
       </div>
 
@@ -172,21 +173,6 @@ const ChangePassword = () => {
             />
           </div>
         ))}
-
-        <div className="password-strength">
-          <p className="strength-text">Password Requirements:</p>
-          <ul className="requirements-list">
-            <li className={formData.newPassword.length >= 6 ? 'valid' : ''}>
-              At least 6 characters
-            </li>
-            <li className={/[A-Z]/.test(formData.newPassword) ? 'valid' : ''}>
-              One uppercase letter
-            </li>
-            <li className={/\d/.test(formData.newPassword) ? 'valid' : ''}>
-              One number
-            </li>
-          </ul>
-        </div>
 
         <Button
           type="submit"

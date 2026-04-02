@@ -390,7 +390,7 @@ workflows:
           
           echo "✅ Build settings configured definitively"
 
-      # PHASE 10: ADD PRIVACY DESCRIPTIONS
+      # PHASE 10: ADD PRIVACY DESCRIPTIONS + DEEP LINK CONFIG
       - name: Add Privacy Descriptions
         script: |
           set -ex
@@ -399,11 +399,30 @@ workflows:
           echo "=== Adding Required Privacy Descriptions ==="
           PLIST_PATH="Info.plist"
           
-          # Ensure app does NOT render under status bar by default
+          # Existing: status bar setting
           /usr/libexec/PlistBuddy -c "Add :UIViewControllerBasedStatusBarAppearance bool false" "$PLIST_PATH" 2>/dev/null || \
           /usr/libexec/PlistBuddy -c "Set :UIViewControllerBasedStatusBarAppearance false" "$PLIST_PATH"
           
-          echo "✅ Privacy descriptions added"
+          # ─── DEEP LINK: Custom URL Scheme for email verification ───
+          
+          # Remove existing CFBundleURLTypes if present to avoid duplicates
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleURLTypes" "$PLIST_PATH" 2>/dev/null || true
+          
+          # Add CFBundleURLTypes array
+          /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" "$PLIST_PATH"
+          
+          # Add first entry (our custom scheme)
+          /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" "$PLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleTypeRole string Editor" "$PLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLName string daretoconnect.app.mobile" "$PLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" "$PLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string daretoconnect" "$PLIST_PATH"
+          
+          # Verify it was written correctly
+          echo "=== Verifying CFBundleURLTypes ==="
+          /usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes" "$PLIST_PATH"
+          
+          echo "✅ Privacy descriptions and deep link scheme added"
 
       # PHASE 11: APP ENCRYPTION COMPLIANCE
       - name: Add App Encryption Compliance

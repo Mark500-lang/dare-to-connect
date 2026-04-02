@@ -211,7 +211,7 @@ const GameCard = () => {
     const renderContent = () => {
         if (loading) {
             return (
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', zIndex: 9999 }}>
                     <CircularProgress />
                 </Box>
             );
@@ -332,7 +332,7 @@ const GameCard = () => {
 
                 {/* Footer */}
                 <div className='promo-footer'>
-                    <a className='site-link' target='_blank' rel='noopener noreferrer' href='https://daretoconnectgames.com/'>
+                    <a className='footer-promo-link' target='_blank' rel='noopener noreferrer' href='https://daretoconnectgames.com/'>
                         www.daretoconnectgames.com
                     </a>
                 </div>
@@ -348,10 +348,9 @@ const GameCard = () => {
                     className="back-button" 
                     onClick={handleBack} 
                     aria-label="Go back" 
-                    size={24} 
                     color="#000000ff" 
                 />
-                <h1 className='game-card-title'>{game?.gameName || 'Game Cards'}</h1>
+                <h1 className='game-details-title'>{game?.gameName || 'Game Cards'}</h1>
             </div>
             
             <div className='game-card-content'>

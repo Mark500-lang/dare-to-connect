@@ -186,6 +186,37 @@ class AuthService {
         }
     }
 
+    async forgotPassword(email) {
+        try {
+            const requestData = buildRequestBody({ email });
+
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.FORGOT_PASSWORD}`, {
+                method: 'POST',
+                headers: API_CONFIG.HEADERS,
+                body: JSON.stringify(requestData)
+            });
+
+            const result = await handleApiResponse(response, 'forgotPassword');
+
+            return {
+                success: true,
+                message: result.message || 'Reset instructions sent to your email.'
+            };
+        } catch (error) {
+            console.error('Forgot password service error:', error);
+
+            if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+                throw new Error('Network error. Please check your internet connection.');
+            } else if (error.message.includes('Email address not found')) {
+                throw new Error('Email address not found. Please check and try again.');
+            } else if (error.message.includes('account is not verified')) {
+                throw new Error('Account not verified. Please check your email for the verification link.');
+            } else {
+                throw error;
+            }
+        }
+    }
+
     async getFullProfile() {
         if (!this.accessToken) {
             return null;

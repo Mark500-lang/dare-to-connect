@@ -217,7 +217,7 @@
     }
 }
 
-/* .swipe-hint {
+.swipe-hint {
     position: fixed;
     top: 50%;
     left: 5px;
@@ -228,10 +228,10 @@
     animation: swipeHint 2s infinite;
     display: none;
     z-index: 998;
-} */
+}
 
 @media (max-width: 768px) {
-    /* .swipe-hint {
+    .swipe-hint {
         display: block;
-    } */
+    }
 }

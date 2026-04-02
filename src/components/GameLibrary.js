@@ -354,11 +354,6 @@ const GameLibrary = () => {
         <div 
             className="library-container" 
             ref={containerRef}
-            style={{
-                touchAction: 'pan-y',
-                overflow: 'auto',
-                height: '100vh'
-            }}
         >
             {/* Pull to refresh indicator */}
             <div 
@@ -395,85 +390,93 @@ const GameLibrary = () => {
             </header>
             
             {/* Games Grid */}
-            <div className="games-grid">
-                {games && games.length > 0 ? (
-                    games.map((game) => {
-                        const imageState = imageStates[game.id] || { loading: true, loaded: false, error: false };
-                        const showSkeleton = imageState.loading || !imageState.loaded;
-                        const isLocked = game.id !== 1 && !hasSubscription && !checkingSubscription;
-                        
-                        return (
-                            <div 
-                                key={game.id} 
-                                className={`game-card ${isLocked ? 'locked' : ''}`}
-                                onClick={() => handleGameClick(game)}
-                            >
-                                {/* Lock Overlay for locked games */}
-                                {isLocked && (
-                                    <div className="game-lock-overlay">
-                                        <IoLockClosed className="lock-icon" />
-                                    </div>
-                                )}
-                                
-                                {/* Image Container */}
-                                <div className="game-card-image-container">
-                                    {/* Game Image - hidden until loaded */}
-                                    {!imageState.error && (
-                                        <img 
-                                            src={game.image1} 
-                                            alt={game.gameName} 
-                                            className={`game-card-image ${imageState.loaded ? 'loaded' : ''}`}
-                                            loading="lazy"
-                                            onLoad={() => handleImageLoad(game.id)}
-                                            onError={(e) => handleImageError(game.id, e)}
-                                            style={{ 
-                                                display: imageState.loaded ? 'block' : 'none'
-                                            }}
-                                        />
-                                    )}
-                                    
-                                    {/* Fallback - shows on error or if no image */}
-                                    {imageState.error && (
-                                        <div 
-                                            className="game-fallback"
-                                            style={{ 
-                                                backgroundColor: game?.color || '#1674a2'
-                                            }}
-                                        >
-                                            {game?.gameName?.charAt(0).toUpperCase() || '?'}
+            <div className="scroll-content">
+                <div className="games-grid">
+                    {games && games.length > 0 ? (
+                        games.map((game) => {
+                            const imageState = imageStates[game.id] || { loading: true, loaded: false, error: false };
+                            const showSkeleton = imageState.loading || !imageState.loaded;
+                            const isLocked = game.id !== 1 && !hasSubscription && !checkingSubscription;
+                            
+                            return (
+                                <div 
+                                    key={game.id} 
+                                    className={`game-card ${isLocked ? 'locked' : ''}`}
+                                    onClick={() => handleGameClick(game)}
+                                >
+                                    {/* Lock Overlay for locked games */}
+                                    {isLocked && (
+                                        <div className="game-lock-overlay">
+                                            <IoLockClosed className="lock-icon" />
                                         </div>
                                     )}
+                                    
+                                    {/* Image Container */}
+                                    <div className="game-card-image-container">
+                                        {/* Game Image - hidden until loaded */}
+                                        {!imageState.error && (
+                                            <img 
+                                                src={game.image1} 
+                                                alt={game.gameName} 
+                                                className={`game-card-image ${imageState.loaded ? 'loaded' : ''}`}
+                                                loading="lazy"
+                                                onLoad={() => handleImageLoad(game.id)}
+                                                onError={(e) => handleImageError(game.id, e)}
+                                                style={{ 
+                                                    display: imageState.loaded ? 'block' : 'none'
+                                                }}
+                                            />
+                                        )}
+                                        
+                                        {/* Fallback - shows on error or if no image */}
+                                        {imageState.error && (
+                                            <div 
+                                                className="game-fallback"
+                                                style={{ 
+                                                    backgroundColor: game?.color || '#1674a2'
+                                                }}
+                                            >
+                                                {game?.gameName?.charAt(0).toUpperCase() || '?'}
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    {/* Game Name Display */}
+                                    <div className="game-name-container">
+                                        {game.id === 1 && (
+                                            <span className="game-name">{game.gameName}</span>
+                                        )}
+                                    </div>
+                                    
+                                    {/* Pulsing Skeleton - shows while loading */}
+                                    <div className="skeleton-container">
+                                        {showSkeleton && (
+                                            <div className="game-card-skeleton"></div>
+                                        )}
+                                    </div>
                                 </div>
-                                
-                                {/* Game Name Display */}
-                                <div className="game-name-container">
-                                    {game.id === 1 && (
-                                        <span className="game-name">{game.gameName}</span>
-                                    )}
-                                </div>
-                                
-                                {/* Pulsing Skeleton - shows while loading */}
-                                <div className="skeleton-container">
-                                    {showSkeleton && (
-                                        <div className="game-card-skeleton"></div>
-                                    )}
-                                </div>
+                            );
+                        })
+                    ) : (
+                        !loading && (
+                            <div className="no-games-message">
+                                <p>No games available</p>
+                                <button 
+                                    onClick={() => loadGames(true)}
+                                    className="retry-button"
+                                >
+                                    Try Again
+                                </button>
                             </div>
-                        );
-                    })
-                ) : (
-                    !loading && (
-                        <div className="no-games-message">
-                            <p>No games available</p>
-                            <button 
-                                onClick={() => loadGames(true)}
-                                className="retry-button"
-                            >
-                                Try Again
-                            </button>
-                        </div>
-                    )
-                )}
+                        )
+                    )}
+                </div>
+
+                <div className='promo-footer'>
+                    <a className='site-link' target='blank' rel='noopener noreferrer' href='https://daretoconnectgames.com/'>
+                        www.daretoconnectgames.com
+                    </a>
+                </div>
             </div>
             
             {/* Refresh indicator overlay */}
@@ -482,12 +485,6 @@ const GameLibrary = () => {
                     <div className="spinner"></div>
                 </div>
             )}
-            
-            <div className='promo-footer'>
-                <a className='site-link' target='blank' rel='noopener noreferrer' href='https://daretoconnectgames.com/'>
-                    www.daretoconnectgames.com
-                </a>
-            </div>
         </div>
     );
 };

@@ -223,7 +223,7 @@ const GameDetails = () => {
                     className="back-button" 
                     onClick={handleBack} 
                     aria-label="Go back" 
-                    size={24} 
+                    // size={34} 
                     color="#000000ff" 
                 />
                 <h1 className='game-details-title'>

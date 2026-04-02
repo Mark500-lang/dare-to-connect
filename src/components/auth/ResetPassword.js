@@ -92,38 +92,39 @@ const ResetPassword = () => {
             </div>
             
             <img src={logo} alt="Dare To Connect" className="auth-logo" />
-                
-            <form className="auth-form" onSubmit={handleSubmit}>
-                <TextField
-                    label="Email Address*"
-                    variant="standard"
-                    type="email"
-                    fullWidth
-                    value={email}
-                    onChange={(e) => {
-                        setEmail(e.target.value);
-                        if (error) setError(null);
-                    }}
-                    sx={muiInputSx}
-                    disabled={loading}
-                    error={!!error && error.includes('email')}
-                    helperText={error && error.includes('email') ? error : ''}
-                />
+            
+            <div className="auth-content">   
+                <form className="auth-form" onSubmit={handleSubmit}>
+                    <TextField
+                        label="Email Address*"
+                        variant="standard"
+                        type="email"
+                        fullWidth
+                        value={email}
+                        onChange={(e) => {
+                            setEmail(e.target.value);
+                            if (error) setError(null);
+                        }}
+                        sx={muiInputSx}
+                        disabled={loading}
+                        error={!!error && error.includes('email')}
+                        helperText={error && error.includes('email') ? error : ''}
+                    />
 
-                <button 
-                    className="primary-btn" 
-                    type="submit"
-                    disabled={loading}
-                >
-                    {loading ? (
-                        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                            <CircularProgress size={16} color="inherit" />
-                            SENDING...
-                        </span>
-                    ) : 'Send Reset Link'}
-                </button>
-            </form>
-
+                    <button 
+                        className="primary-btn" 
+                        type="submit"
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                <CircularProgress size={16} color="inherit" />
+                                SENDING...
+                            </span>
+                        ) : 'Send Reset Link'}
+                    </button>
+                </form>
+            </div>  
             {/* Error Snackbar */}
             <Snackbar 
                 open={!!error} 

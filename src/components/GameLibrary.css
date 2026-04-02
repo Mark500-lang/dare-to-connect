@@ -1,11 +1,10 @@
 .library-container {
     position: relative;
-    overflow-y: auto;
     height: 100vh;
-    padding-top: 90px;
-    padding-bottom: 10px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
 }
-
 /* Pull to Refresh Indicator */
 .pull-to-refresh-indicator {
     position: fixed;
@@ -16,7 +15,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: 200;
     pointer-events: none;
     transition: opacity 0.2s ease, transform 0.2s ease;
     background: white;
@@ -42,16 +41,24 @@
 
 /* Sticky Header */
 .library-header {
-    position: fixed;
+    position: sticky;
     top: 0;
     left: 0;
     right: 0;
     z-index: 100;
     background: white;
     padding: 20px 20px 5px;
+    padding-top: calc(env(safe-area-inset-top) + 20px);
     display: flex;
     align-items: center;
     gap: 30px;
+}
+
+/* Scroll content wrapper — grid and footer flow together */
+.scroll-content {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100% - 70px);
 }
 
 .sidebar-toggle {
@@ -72,13 +79,13 @@
 }
 
 .toggle-icon {
-    font-size: 26px !important;
+    font-size: 40px !important;
     font-weight: bold;
     color: #1674a2;
 }
 
 .library-title {
-    font-size: 20px;
+    font-size: 28px;
     font-weight: 600;
     margin: 0;
     color: #333;
@@ -252,12 +259,10 @@
 /* Promo Footer */
 .promo-footer {
     display: block;
-    bottom: 0;
-    left: 0;
-    right: 0;
     background: white;
-    padding: 0 !important;
+    padding: 16px 0;
     text-align: center;
+    margin-top: auto;
 }
 
 .site-link {
@@ -287,7 +292,7 @@
     right: 0;
     bottom: 0;
     background-color: rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(1px);
+    backdrop-filter: blur(0.7px);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -351,6 +356,12 @@
 
 /* Responsive adjustments for new elements */
 @media (max-width: 768px) {
+    .toggle-icon {
+        font-size: 32px !important;
+    }
+    .library-title {
+        font-size: 22px;
+    }
     .game-lock-overlay {
         border-radius: 25px;
     }
@@ -380,6 +391,14 @@
 }
 
 @media (max-width: 480px) {
+    .toggle-icon {
+        font-size: 30px !important;
+        font-weight: bold;
+        color: #1674a2;
+    }
+    .library-title {
+        font-size: 20px;
+    }
     .game-lock-overlay {
         border-radius: 20px;
     }

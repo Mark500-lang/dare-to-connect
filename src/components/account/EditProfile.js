@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FaArrowLeft, FaCamera } from 'react-icons/fa';
+import { FaCamera } from 'react-icons/fa';
+import { IoIosArrowBack } from "react-icons/io";
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import geoService from '../../services/geoService';
@@ -210,7 +211,7 @@ const EditProfile = () => {
   return (
     <div className="edit-profile-page">
       <div className="edit-profile-header">
-        <FaArrowLeft onClick={() => navigate('/account')} />
+        <IoIosArrowBack onClick={() => navigate('/account')} />
         <span>Edit Profile</span>
       </div>
 

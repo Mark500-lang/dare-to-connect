@@ -35,7 +35,6 @@ const Subscriptions = () => {
   }, [isAuthenticated, navigate]);
 
   useEffect(() => {
-    // Only fetch data if authenticated
     if (isAuthenticated) {
       initializeRevenueCat();
       fetchPaymentPackages();
@@ -64,7 +63,6 @@ const Subscriptions = () => {
     try {
       const packagesData = await subscriptionService.getPaymentPackages();
       
-      // Transform the data to match App Store design
       const transformedPackages = packagesData.map(pkg => ({
         id: pkg.id,
         name: pkg.packageName,
@@ -72,13 +70,13 @@ const Subscriptions = () => {
         price: pkg.amount,
         months: pkg.months,
         pricePerMonth: pkg.amount / pkg.months,
-        isMostPopular: pkg.id === 3,
-        isBestValue: pkg.id === 4,
+        isMostPopular: pkg.id === 2,
+        isBestValue: pkg.id === 3,
       }));
       
       setPackages(transformedPackages);
       
-      const defaultPackage = transformedPackages.find(p => p.id === 3) || transformedPackages[0];
+      const defaultPackage = transformedPackages.find(p => p.isMostPopular) || transformedPackages[0];
       setSelectedPackage(defaultPackage);
       
     } catch (err) {
@@ -104,7 +102,7 @@ const Subscriptions = () => {
 
   const formatPricePerMonth = (price, months) => {
     const pricePerMonth = price / months;
-    return `${formatPrice(pricePerMonth)}/month`;
+    return `${formatPrice(pricePerMonth)}/mo`;
   };
 
   const getDurationText = (months) => {
@@ -114,6 +112,7 @@ const Subscriptions = () => {
     return `${months} Months`;
   };
 
+  // ── PURCHASE LOGIC UNCHANGED ──
   const handlePurchase = async () => {
     if (!selectedPackage) return;
     
@@ -122,62 +121,60 @@ const Subscriptions = () => {
     setSuccess(null);
     
     try {
-        const purchaseResult = await subscriptionService.purchasePackage(selectedPackage.id);
-        
-        if (purchaseResult.success) {
-            setSuccess(`Purchase successful! You now have access to ${selectedPackage.name}.`);
-            
-            await refreshUserData();
-            
-            setTimeout(() => {
-                navigate('/library');
-            }, 2000);
-        }
-        
+      const purchaseResult = await subscriptionService.purchasePackage(selectedPackage.id);
+      
+      if (purchaseResult.success) {
+        setSuccess(`Purchase successful! You now have access to ${selectedPackage.name}.`);
+        await refreshUserData();
+        setTimeout(() => {
+          navigate('/library');
+        }, 2000);
+      }
     } catch (err) {
-        console.error('Purchase error:', err);
-        
-        let errorMessage = err.message || 'Failed to complete purchase. Please try again.';
-        
-        if (err.message.includes('cancelled')) {
-            errorMessage = 'Purchase was cancelled.';
-        } else if (err.message.includes('already own')) {
-            errorMessage = 'You already have this subscription.';
-        } else if (err.message.includes('Network error')) {
-            errorMessage = 'Network error. Please check your internet connection.';
-        } else if (err.message.includes('not available')) {
-            errorMessage = 'In-app purchases are not available on this platform.';
-        }
-        
-        setError(errorMessage);
+      console.error('Purchase error:', err);
+      
+      let errorMessage = err.message || 'Failed to complete purchase. Please try again.';
+      
+      if (err.message.includes('cancelled')) {
+        errorMessage = 'Purchase was cancelled.';
+      } else if (err.message.includes('already own')) {
+        errorMessage = 'You already have this subscription.';
+      } else if (err.message.includes('Network error')) {
+        errorMessage = 'Network error. Please check your internet connection.';
+      } else if (err.message.includes('not available')) {
+        errorMessage = 'In-app purchases are not available on this platform.';
+      }
+      
+      setError(errorMessage);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-};
+  };
 
-const handleRestorePurchases = async () => {
+  // ── RESTORE LOGIC UNCHANGED ──
+  const handleRestorePurchases = async () => {
     setLoading(true);
     setError(null);
     
     try {
-        const restoreResult = await subscriptionService.restorePurchases();
-        
-        if (restoreResult.success) {
-            setSuccess(restoreResult.message);
-            await refreshUserData();
-        } else {
-            setError(restoreResult.message);
-        }
+      const restoreResult = await subscriptionService.restorePurchases();
+      
+      if (restoreResult.success) {
+        setSuccess(restoreResult.message);
+        await refreshUserData();
+      } else {
+        setError(restoreResult.message);
+      }
     } catch (err) {
-        console.error('Restore error:', err);
-        setError('Failed to restore purchases. Please try again.');
+      console.error('Restore error:', err);
+      setError('Failed to restore purchases. Please try again.');
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
   const isCurrentPlan = selectedPackage && userSubscription?.packageId === selectedPackage.id;
- 
+
   // Show loading while checking auth
   if (!isAuthenticated) {
     return (
@@ -191,25 +188,29 @@ const handleRestorePurchases = async () => {
 
   return (
     <div className="subscriptions-page">
+
+      {/* ── Header ── */}
       <div className="subscriptions-header">
         <IoIosArrowBack 
           aria-label="Go back" 
           size={24} 
           color="#000000ff" 
           onClick={() => navigate("/library")} 
-          className="back-icon" />
+          className="back-icon"
+        />
         <span className="header-title">My Subscription</span>
       </div>
 
       <Container maxWidth="sm" className="subscriptions-container">
-        {/* App Store Style Header */}
+
+        {/* ── Page Title ── */}
         <Box className="app-store-header">
           <Typography variant="h6" className="main-title" gutterBottom>
             Subscribe to Unlock Premium Content
           </Typography>
         </Box>
 
-        {/* VERTICAL Package Cards - No Scroll */}
+        {/* ── Package Cards ── */}
         <Box className="packages-vertical-container">
           {loadingPackages ? (
             <Box className="loading-packages">
@@ -221,20 +222,19 @@ const handleRestorePurchases = async () => {
           ) : packages.length > 0 ? (
             <div className="packages-vertical-grid">
               {packages.map((pkg) => (
-                <Paper 
+                <Paper
                   key={pkg.id}
                   className={`package-card-vertical ${selectedPackage?.id === pkg.id ? 'selected' : ''} ${pkg.isMostPopular ? 'popular' : ''} ${pkg.isBestValue ? 'best-value' : ''}`}
                   elevation={selectedPackage?.id === pkg.id ? 3 : 1}
                   onClick={() => handlePackageSelect(pkg)}
                 >
-                  {/* Badges */}
                   {pkg.isMostPopular && (
                     <div className="package-badge popular-badge">MOST POPULAR</div>
                   )}
                   {pkg.isBestValue && (
                     <div className="package-badge value-badge">BEST VALUE</div>
                   )}
-                  
+
                   <Box className="package-content-vertical">
                     <Box className="package-header-vertical">
                       <Typography variant="h6" className="package-name-vertical">
@@ -244,7 +244,7 @@ const handleRestorePurchases = async () => {
                         {pkg.description}
                       </Typography>
                     </Box>
-                    
+
                     <Box className="price-section-vertical">
                       <Typography variant="h4" className="package-price-vertical">
                         {formatPrice(pkg.price)}
@@ -258,8 +258,7 @@ const handleRestorePurchases = async () => {
                         </Typography>
                       </Box>
                     </Box>
-                    
-                    {/* Selection indicator */}
+
                     <Box className="selection-indicator-vertical">
                       <div className={`selection-dot-vertical ${selectedPackage?.id === pkg.id ? 'selected' : ''}`} />
                     </Box>
@@ -276,12 +275,12 @@ const handleRestorePurchases = async () => {
           )}
         </Box>
 
-        {/* Current Plan (if any) */}
+        {/* ── Current Plan ── */}
         {userSubscription && (
           <Paper className="current-plan-card" elevation={0}>
             <Box className="current-plan-content">
               <Typography variant="subtitle1" className="current-plan-title">
-                Your Current Plan
+                YOUR CURRENT PLAN
               </Typography>
               <Typography variant="h6" className="current-plan-name">
                 {userSubscription.packageName}
@@ -293,9 +292,80 @@ const handleRestorePurchases = async () => {
           </Paper>
         )}
 
-        {/* Subscribe Button */}
+        {/* ── Subscribe Section ── */}
         {selectedPackage && !loadingPackages && packages.length > 0 && (
           <Box className="subscribe-section">
+
+            {/* ─────────────────────────────────────────────────────────
+                APPLE GUIDELINE 3.1.2 COMPLIANCE DISCLOSURE
+                Must appear ABOVE the subscribe button so it is visible
+                before the user commits to the purchase.
+            ───────────────────────────────────────────────────────── */}
+            <Box className="subscription-disclosure">
+
+              {/* Service title */}
+              <Typography className="disclosure-title">
+                Dare to Connect Premium
+              </Typography>
+              <Typography className="disclosure-subtitle">
+                Unlock all games and features
+              </Typography>
+
+              {/* All plans with length + price — Apple requires this */}
+              <Box className="disclosure-plans">
+                {packages.map((pkg) => (
+                  <Box
+                    key={pkg.id}
+                    className={`disclosure-plan-row ${selectedPackage?.id === pkg.id ? 'active' : ''}`}
+                  >
+                    <Typography className="disclosure-plan-name">
+                      {pkg.name} — {getDurationText(pkg.months)}
+                    </Typography>
+                    <Typography className="disclosure-plan-price">
+                      {formatPrice(pkg.price)}
+                      {pkg.months > 1 && (
+                        <span className="disclosure-per-month">
+                          {' '}({formatPricePerMonth(pkg.price, pkg.months)})
+                        </span>
+                      )}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+
+              {/* Auto-renewal legal text — Apple required */}
+              <Typography className="disclosure-legal">
+                Payment will be charged to your Apple ID account at confirmation of purchase.
+                Subscription automatically renews unless auto-renew is turned off at least
+                24 hours before the end of the current period. Your account will be charged
+                for renewal within 24 hours prior to the end of the current period.
+                Manage and cancel subscriptions in your App Store Account Settings after purchase.
+              </Typography>
+
+              {/* Functional links — Apple required */}
+              <Box className="disclosure-links">
+                <a
+                  href="https://daretoconnectgames.com/privacy-policy/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="disclosure-link"
+                >
+                  Privacy Policy
+                </a>
+                <span className="disclosure-separator">•</span>
+                <a
+                  href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="disclosure-link"
+                >
+                  Terms of Use
+                </a>
+              </Box>
+            </Box>
+            {/* ── END COMPLIANCE DISCLOSURE ── */}
+
+            {/* Subscribe Button */}
             <Button
               fullWidth
               variant="contained"
@@ -305,15 +375,19 @@ const handleRestorePurchases = async () => {
               disabled={loading || isCurrentPlan}
               startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
             >
-              {loading ? 'Processing...' : isCurrentPlan ? 'Current Plan' : `Subscribe Now - ${formatPrice(selectedPackage.price)}`}
+              {loading
+                ? 'Processing...'
+                : isCurrentPlan
+                ? 'Current Plan'
+                : `Subscribe Now — ${formatPrice(selectedPackage.price)}`}
             </Button>
-            
+
             {isCurrentPlan && (
               <Typography variant="caption" color="text.secondary" className="current-plan-note">
                 You are currently subscribed to this plan
               </Typography>
             )}
-            
+
             {/* Restore Purchases */}
             <Box className="restore-section">
               <Button
@@ -326,45 +400,15 @@ const handleRestorePurchases = async () => {
               </Button>
             </Box>
 
-            {/* Legal Footer with Privacy Policy and Terms of Service Links - Apple Compliance */}
-            <Box className="legal-footer">
-              <Typography variant="caption" color="text.secondary" align="center" className="legal-text">
-                By subscribing, you agree to our{' '}
-                <Link 
-                  href="https://daretoconnectgames.com/privacy-policy" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="legal-link"
-                  underline="hover"
-                >
-                  Privacy Policy
-                </Link>
-                {' '}and{' '}
-                <Link 
-                  href="https://daretoconnectgames.com/privacy-policy" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="legal-link"
-                  underline="hover"
-                >
-                  Terms of Service
-                </Link>
-              </Typography>
-              <Typography variant="caption" color="text.secondary" align="center" className="renewal-text">
-                Subscription automatically renews unless auto-renew is turned off at least 24-hours before the end of the current period.
-              </Typography>
-              <Typography variant="caption" color="text.secondary" align="center" className="manage-text">
-                You can manage your subscriptions in your Account Settings after purchase.
-              </Typography>
-            </Box>
           </Box>
         )}
+
       </Container>
 
-      {/* Success/Error Messages */}
-      <Snackbar 
-        open={!!success} 
-        autoHideDuration={5000} 
+      {/* ── Snackbars ── */}
+      <Snackbar
+        open={!!success}
+        autoHideDuration={5000}
         onClose={() => setSuccess(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
@@ -373,9 +417,9 @@ const handleRestorePurchases = async () => {
         </Alert>
       </Snackbar>
 
-      <Snackbar 
-        open={!!error} 
-        autoHideDuration={6000} 
+      <Snackbar
+        open={!!error}
+        autoHideDuration={6000}
         onClose={() => setError(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
@@ -383,6 +427,7 @@ const handleRestorePurchases = async () => {
           {error}
         </Alert>
       </Snackbar>
+
     </div>
   );
 };
