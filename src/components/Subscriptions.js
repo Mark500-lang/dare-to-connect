@@ -335,11 +335,11 @@ const Subscriptions = () => {
 
               {/* Auto-renewal legal text — Apple required */}
               <Typography className="disclosure-legal">
-                Payment will be charged to your Apple ID account at confirmation of purchase.
+                Payment will be charged to your account at confirmation of purchase.
                 Subscription automatically renews unless auto-renew is turned off at least
                 24 hours before the end of the current period. Your account will be charged
                 for renewal within 24 hours prior to the end of the current period.
-                Manage and cancel subscriptions in your App Store Account Settings after purchase.
+                Manage and cancel subscriptions in your Account Settings after purchase.
               </Typography>
 
               {/* Functional links — Apple required */}
@@ -352,7 +352,7 @@ const Subscriptions = () => {
                 >
                   Privacy Policy
                 </a>
-                <span className="disclosure-separator">•</span>
+                {/* <span className="disclosure-separator">•</span>
                 <a
                   href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
                   target="_blank"
@@ -360,7 +360,7 @@ const Subscriptions = () => {
                   className="disclosure-link"
                 >
                   Terms of Use
-                </a>
+                </a> */}
               </Box>
             </Box>
             {/* ── END COMPLIANCE DISCLOSURE ── */}

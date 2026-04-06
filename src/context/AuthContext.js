@@ -27,17 +27,12 @@ export const AuthProvider = ({ children }) => {
 
     const initializeAuth = async () => {
         setLoading(true);
-        
         try {
-            // Check if user is already logged in
             if (authService.isAuthenticated()) {
                 const userData = authService.getUser();
                 setUser(userData);
-                
-                // Load games
                 await refreshGames();
             } else {
-                // Load public games for non-logged in users
                 await refreshGames();
             }
         } catch (err) {
@@ -57,13 +52,10 @@ export const AuthProvider = ({ children }) => {
         } catch (err) {
             console.error('Error refreshing games:', err);
             setError(err.message);
-            
-            // Try to use cached games
             const cachedGames = gameService.getCachedGames();
             if (cachedGames && cachedGames.length > 0) {
                 setGames(cachedGames);
             }
-            
             throw err;
         }
     };
@@ -71,14 +63,10 @@ export const AuthProvider = ({ children }) => {
     const login = async (email, password) => {
         setLoading(true);
         setError(null);
-        
         try {
             const result = await authService.login(email, password);
             setUser(result.user);
-            
-            // Refresh games after login
             await refreshGames(true);
-            
             return result;
         } catch (err) {
             console.error('Login error:', err);
@@ -92,7 +80,6 @@ export const AuthProvider = ({ children }) => {
     const register = async (userData) => {
         setLoading(true);
         setError(null);
-        
         try {
             const result = await authService.register(userData);
             return result;
@@ -108,7 +95,6 @@ export const AuthProvider = ({ children }) => {
     const forgotPassword = async (email) => {
         setLoading(true);
         setError(null);
-        
         try {
             const result = await authService.forgotPassword(email);
             return result;
@@ -124,14 +110,10 @@ export const AuthProvider = ({ children }) => {
     const updateProfile = async (profileData) => {
         setLoading(true);
         setError(null);
-        
         try {
             const result = await authService.updateProfile(profileData);
-            
-            // Refresh user data
             const updatedUser = await authService.getProfile();
             setUser(updatedUser);
-            
             return result;
         } catch (err) {
             console.error('Profile update error:', err);
@@ -142,10 +124,31 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    // ─── NEW: Profile Picture Update ───────────────────────────────────────────
+    const updateProfilePicture = async (base64Image) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const result = await authService.updateProfilePicture(base64Image);
+
+            // Refresh user in context so the new pic appears everywhere immediately
+            const updatedUser = await authService.getProfile();
+            setUser(updatedUser);
+
+            return result;
+        } catch (err) {
+            console.error('Profile picture update error:', err);
+            setError(err.message);
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    };
+    // ──────────────────────────────────────────────────────────────────────────
+
     const changePassword = async (currentPassword, newPassword) => {
         setLoading(true);
         setError(null);
-        
         try {
             const result = await authService.changePassword(currentPassword, newPassword);
             return result;
@@ -165,9 +168,7 @@ export const AuthProvider = ({ children }) => {
         setGames([]);
         setSubscription(null);
         setError(null);
-        setLogoutSuccess(true); // Show success message
-        
-        // Auto-hide success message after 3 seconds
+        setLogoutSuccess(true);
         setTimeout(() => {
             setLogoutSuccess(false);
         }, 3000);
@@ -185,6 +186,7 @@ export const AuthProvider = ({ children }) => {
         logout,
         refreshGames,
         updateProfile,
+        updateProfilePicture,  // ← exposed here
         changePassword,
         isAuthenticated: authService.isAuthenticated(),
         logoutSuccess,
@@ -194,15 +196,14 @@ export const AuthProvider = ({ children }) => {
     return (
         <AuthContext.Provider value={value}>
             {children}
-            {/* Logout Success Snackbar */}
             <Snackbar
                 open={logoutSuccess}
                 autoHideDuration={3000}
                 onClose={() => setLogoutSuccess(false)}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
             >
-                <Alert 
-                    severity="success" 
+                <Alert
+                    severity="success"
                     onClose={() => setLogoutSuccess(false)}
                     sx={{ width: '100%' }}
                 >

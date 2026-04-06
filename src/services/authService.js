@@ -284,6 +284,40 @@ class AuthService {
         }
     }
 
+    async updateProfilePicture(base64Image) {
+        if (!this.accessToken) {
+            throw new Error('Not authenticated');
+        }
+
+        try {
+            const requestData = buildRequestBody({
+                accessToken: this.accessToken,
+                imageB64: base64Image  // matches $data->imageB64 in your PHP
+            });
+
+            const response = await fetch(
+                `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.EDIT_PIC}`,
+                {
+                    method: 'POST',
+                    headers: API_CONFIG.HEADERS,
+                    body: JSON.stringify(requestData)
+                }
+            );
+
+            const result = await handleApiResponse(response);
+
+            // Refresh profile so new pic shows everywhere
+            await this.getFullProfile();
+
+            return {
+                success: true,
+                message: result.message || 'Profile picture updated'
+            };
+        } catch (error) {
+            console.error('Edit pic error:', error);
+            throw error;
+        }
+    }
     // Add this method to change password
     async changePassword(currentPassword, newPassword) {
         if (!this.accessToken) {

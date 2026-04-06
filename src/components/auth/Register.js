@@ -113,23 +113,20 @@ const Register = () => {
             isValid = false;
         }
 
-        if (!formData.phone.trim()) {
-            errors.phone = 'Phone number is required';
-            isValid = false;
-        } else if (!/^\d+$/.test(formData.phone)) {
+        if (formData.phone.trim() && !/^\d+$/.test(formData.phone)) {
             errors.phone = 'Phone number must contain only digits';
             isValid = false;
         }
 
-        if (!formData.countryId) {
-            errors.countryId = 'Country selection is required';
-            isValid = false;
-        }
+        // if (!formData.countryId) {
+        //     errors.countryId = 'Country selection is required';
+        //     isValid = false;
+        // }
 
-        if (!formData.cityId) {
-            errors.cityId = 'City selection is required';
-            isValid = false;
-        }
+        // if (!formData.cityId) {
+        //     errors.cityId = 'City selection is required';
+        //     isValid = false;
+        // }
 
         if (!formData.password) {
             errors.password = 'Password is required';
@@ -226,7 +223,7 @@ const Register = () => {
     };
 
     const handleBack = () => {
-        navigate('/library');
+        navigate('/login');
     };
     
     const muiInputSx = {
@@ -305,7 +302,7 @@ const Register = () => {
                                 name="countryId"
                                 value={formData.countryId}
                                 onChange={handleChange}
-                                label="Country*"
+                                label="Country"
                                 error={!!formErrors.countryId}
                             >
                                 <MenuItem value="">
@@ -325,7 +322,7 @@ const Register = () => {
                         </FormControl>
 
                         <FormControl fullWidth variant="standard" sx={muiInputSx} disabled={loading || loadingCities || !formData.countryId}>
-                            <InputLabel>City*</InputLabel>
+                            <InputLabel>City</InputLabel>
                             <Select
                                 name="cityId"
                                 value={formData.cityId}
@@ -351,7 +348,7 @@ const Register = () => {
                     </div>
 
                     <TextField
-                        label="Mobile No.*"
+                        label="Mobile No."
                         variant="standard"
                         name="phone"
                         fullWidth

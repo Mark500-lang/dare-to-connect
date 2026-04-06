@@ -301,7 +301,7 @@ const GameLibrary = () => {
         // Check subscription status from the database
         if (!hasSubscription) {
             // Redirect to subscription page with return URL
-            navigate('/subscription', { 
+            navigate('/subscriptions', { 
                 state: { 
                     from: '/library',
                     gameId: game.id,

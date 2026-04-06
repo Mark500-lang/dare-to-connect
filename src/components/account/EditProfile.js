@@ -19,7 +19,7 @@ import './EditProfile.css';
 
 const EditProfile = () => {
   const navigate = useNavigate();
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, updateProfilePicture } = useAuth();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState(null);
@@ -36,6 +36,7 @@ const EditProfile = () => {
     countryId: '',
     cityId: ''
   });
+  const [newProfileImage, setNewProfileImage] = useState(null);
 
   const [formErrors, setFormErrors] = useState({});
 
@@ -148,39 +149,44 @@ const EditProfile = () => {
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result);
-        // In a real app, you would upload this to your server
-      };
-      reader.readAsDataURL(file);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setPhotoPreview(reader.result);
+            // Strip the "data:image/jpeg;base64," prefix before sending
+            const base64Data = reader.result.split(',')[1];
+            setNewProfileImage(base64Data);
+        };
+        reader.readAsDataURL(file);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
+    if (!validateForm()) return;
+
     setLoading(true);
     setError(null);
     setSuccess(null);
-    
+
     try {
-      const profileData = {
-        firstName: formData.firstName.trim(),
-        lastName: formData.lastName.trim(),
-        email: formData.email.trim(),
-        mobileNo: formData.mobileNo.trim(),
-        countryId: parseInt(formData.countryId),
-        cityId: parseInt(formData.cityId)
-      };
-      
-      await updateProfile(profileData);
-      
-      setSuccess('Profile updated successfully!');
+        // 1. Update profile text data
+        const profileData = {
+            firstName: formData.firstName.trim(),
+            lastName: formData.lastName.trim(),
+            email: formData.email.trim(),
+            mobileNo: formData.mobileNo.trim(),
+            countryId: parseInt(formData.countryId),
+            cityId: parseInt(formData.cityId)
+        };
+        await updateProfile(profileData);
+
+        // 2. If a new photo was selected, upload it separately
+        if (newProfileImage) {
+            await updateProfilePicture(newProfileImage);
+            setNewProfileImage(null); // reset after upload
+        }
+
+        setSuccess('Profile updated successfully!');
       
     } catch (err) {
       console.error('Profile update error:', err);

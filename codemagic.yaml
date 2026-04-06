@@ -348,7 +348,7 @@ workflows:
             PATCH="0"
           fi
           
-          # Increment patch version (2.2 → 2.3)
+          # Increment patch version (2.3 → 2.4)
           NEW_PATCH=$((PATCH + 1))
           NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
           
@@ -378,8 +378,8 @@ workflows:
           # Critical validation - ensure CFBundleShortVersionString is set
           if [ -z "$FINAL_VERSION" ] || [[ "$FINAL_VERSION" == *"$"* ]]; then
             echo "❌ CRITICAL: CFBundleShortVersionString is not properly set!"
-            echo "Setting fallback version: 2.3"
-            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 2.3" "$PLIST_PATH"
+            echo "Setting fallback version: 2.4"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 2.4" "$PLIST_PATH"
             /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_BUILD" "$PLIST_PATH"
           fi
           
@@ -402,23 +402,32 @@ workflows:
           # Existing: status bar setting
           /usr/libexec/PlistBuddy -c "Add :UIViewControllerBasedStatusBarAppearance bool false" "$PLIST_PATH" 2>/dev/null || \
           /usr/libexec/PlistBuddy -c "Set :UIViewControllerBasedStatusBarAppearance false" "$PLIST_PATH"
+
+          # ─── CAMERA & PHOTO LIBRARY PERMISSIONS (fixes App Review crash) ───
+          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'Dare to Connect needs camera access to let you take a profile photo.'" "$PLIST_PATH" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :NSCameraUsageDescription 'Dare to Connect needs camera access to let you take a profile photo.'" "$PLIST_PATH"
+
+          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string 'Dare to Connect needs photo library access to let you choose a profile photo.'" "$PLIST_PATH" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :NSPhotoLibraryUsageDescription 'Dare to Connect needs photo library access to let you choose a profile photo.'" "$PLIST_PATH"
+
+          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryAddUsageDescription string 'Dare to Connect needs permission to save photos to your library.'" "$PLIST_PATH" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :NSPhotoLibraryAddUsageDescription 'Dare to Connect needs permission to save photos to your library.'" "$PLIST_PATH"
+
+          # ─── Verify permissions were written ───
+          echo "=== Verifying Privacy Permission Keys ==="
+          /usr/libexec/PlistBuddy -c "Print :NSCameraUsageDescription" "$PLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Print :NSPhotoLibraryUsageDescription" "$PLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Print :NSPhotoLibraryAddUsageDescription" "$PLIST_PATH"
           
           # ─── DEEP LINK: Custom URL Scheme for email verification ───
-          
-          # Remove existing CFBundleURLTypes if present to avoid duplicates
           /usr/libexec/PlistBuddy -c "Delete :CFBundleURLTypes" "$PLIST_PATH" 2>/dev/null || true
-          
-          # Add CFBundleURLTypes array
           /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" "$PLIST_PATH"
-          
-          # Add first entry (our custom scheme)
           /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" "$PLIST_PATH"
           /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleTypeRole string Editor" "$PLIST_PATH"
           /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLName string daretoconnect.app.mobile" "$PLIST_PATH"
           /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" "$PLIST_PATH"
           /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string daretoconnect" "$PLIST_PATH"
           
-          # Verify it was written correctly
           echo "=== Verifying CFBundleURLTypes ==="
           /usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes" "$PLIST_PATH"
           
