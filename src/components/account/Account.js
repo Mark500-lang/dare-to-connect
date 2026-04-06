@@ -42,7 +42,7 @@ const Account = () => {
         <div className="user-details">
           <h3>{user?.firstName} {user?.lastName}</h3>
           <p>{user?.email}</p>
-          {user?.mobileNo && <p className="phone">{user.mobileNo}</p>}
+          {/* {user?.mobileNo && <p className="phone">{user.mobileNo}</p>} */}
         </div>
       </div>
 

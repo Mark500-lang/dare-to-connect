@@ -112,23 +112,20 @@ const EditProfile = () => {
       isValid = false;
     }
 
-    if (!formData.mobileNo.trim()) {
-      errors.mobileNo = 'Phone number is required';
-      isValid = false;
-    } else if (!/^\d+$/.test(formData.mobileNo)) {
+    if (!/^\d+$/.test(formData.mobileNo)) {
       errors.mobileNo = 'Phone number must contain only digits';
       isValid = false;
     }
 
-    if (!formData.countryId) {
-      errors.countryId = 'Country selection is required';
-      isValid = false;
-    }
+    // if (!formData.countryId) {
+    //   errors.countryId = 'Country selection is required';
+    //   isValid = false;
+    // }
 
-    if (!formData.cityId) {
-      errors.cityId = 'City selection is required';
-      isValid = false;
-    }
+    // if (!formData.cityId) {
+    //   errors.cityId = 'City selection is required';
+    //   isValid = false;
+    // }
 
     setFormErrors(errors);
     return isValid;
