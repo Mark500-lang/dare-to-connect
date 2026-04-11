@@ -178,7 +178,7 @@ const Subscriptions = () => {
   // Show loading while checking auth
   if (!isAuthenticated) {
     return (
-      <div className="subscriptions-page">
+      <div className="standalone-page">
         <div className="loading-container">
           <CircularProgress />
         </div>
@@ -187,16 +187,15 @@ const Subscriptions = () => {
   }
 
   return (
-    <div className="subscriptions-page">
+    <div className="standalone-page">
 
       {/* ── Header ── */}
       <div className="subscriptions-header">
         <IoIosArrowBack 
           aria-label="Go back" 
-          size={24} 
           color="#000000ff" 
           onClick={() => navigate("/library")} 
-          className="back-icon"
+          className="back-button"
         />
         <span className="header-title">My Subscription</span>
       </div>
@@ -335,7 +334,7 @@ const Subscriptions = () => {
 
               {/* Auto-renewal legal text — Apple required */}
               <Typography className="disclosure-legal">
-                Payment will be charged to your account at confirmation of purchase.
+                Payment will be charged to your Apple account at confirmation of purchase.
                 Subscription automatically renews unless auto-renew is turned off at least
                 24 hours before the end of the current period. Your account will be charged
                 for renewal within 24 hours prior to the end of the current period.
@@ -352,7 +351,7 @@ const Subscriptions = () => {
                 >
                   Privacy Policy
                 </a>
-                {/* <span className="disclosure-separator">•</span>
+                <span className="disclosure-separator">•</span>
                 <a
                   href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
                   target="_blank"
@@ -360,7 +359,7 @@ const Subscriptions = () => {
                   className="disclosure-link"
                 >
                   Terms of Use
-                </a> */}
+                </a>
               </Box>
             </Box>
             {/* ── END COMPLIANCE DISCLOSURE ── */}

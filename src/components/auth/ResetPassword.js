@@ -6,8 +6,10 @@ import TextField from '@mui/material/TextField';
 import { Alert, Snackbar, CircularProgress } from '@mui/material';
 import './Auth.css';
 import logo from '../../assets/Logos/Logo blue.png';
+import { useStatusBar } from '../../hooks/useStatusBar';
 
 const ResetPassword = () => {
+    useStatusBar('dark', '#ffffff');
     const navigate = useNavigate();
     const { forgotPassword } = useAuth();
     const [email, setEmail] = useState('');
@@ -79,13 +81,12 @@ const ResetPassword = () => {
     };
 
     return (
-        <div className="auth-page">
+        <div className="standalone-page">
             <div className="game-details-header">
                 <IoIosArrowBack 
                     className="back-button" 
                     onClick={handleBack} 
                     aria-label="Go back" 
-                    size={24} 
                     color="#000000ff" 
                 />
                 <h1 className='game-details-title'>Reset Password</h1>

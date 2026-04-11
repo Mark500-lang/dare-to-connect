@@ -5,11 +5,13 @@ import gamesService from '../services/gameService';
 import { Box, CircularProgress } from '@mui/material';
 import { IoIosArrowBack } from "react-icons/io";
 import './GameDetails.css';
+import { useStatusBar } from '../hooks/useStatusBar';
 
 // Image cache for game details
 const gameImageCache = new Map();
 
 const GameDetails = () => {
+    useStatusBar('dark', '#ffffff');
     const { gameId } = useParams();
     const navigate = useNavigate();
     const { user, isAuthenticated } = useAuth();
@@ -217,7 +219,7 @@ const GameDetails = () => {
     };
 
     return (
-        <div className="standalone-page game-details-page">
+        <div className="standalone-page">
             <div className="game-details-header">
                 <IoIosArrowBack 
                     className="back-button" 

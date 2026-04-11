@@ -13,8 +13,10 @@ import {
   IconButton 
 } from '@mui/material';
 import './ChangePassword.css';
+import { useStatusBar } from '../../hooks/useStatusBar';
 
 const ChangePassword = () => {
+  useStatusBar('dark', '#ffffff');
   const navigate = useNavigate();
   const { changePassword } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -132,10 +134,10 @@ const ChangePassword = () => {
   };
 
   return (
-    <div className="change-password-page">
-      <div className="change-password-header">
-        <IoIosArrowBack  onClick={() => navigate('/account')} />
-        <span>Change Password</span>
+    <div className="standalone-page">
+      <div className="game-details-header">
+        <IoIosArrowBack className='back-button' onClick={() => navigate('/account')} />
+        <h2 className='game-details-title'>Change Password</h2>
       </div>
 
       <form className="change-password-form" onSubmit={handleSubmit}>

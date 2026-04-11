@@ -62,22 +62,27 @@ workflows:
           echo "=== Updating browserslist ==="
           npx update-browserslist-db@latest
 
-          echo "=== Verifying RevenueCat installation ==="
-          if [ -d "node_modules/@revenuecat/purchases-capacitor" ]; then
-            echo "✅ @revenuecat/purchases-capacitor installed successfully"
-            echo "Version: $(node -p "require('@revenuecat/purchases-capacitor/package.json').version")"
-          else
-            echo "❌ @revenuecat/purchases-capacitor not found in node_modules"
-            exit 1
-          fi
-          
-          if [ -d "node_modules/@revenuecat/purchases-capacitor-ui" ]; then
-            echo "✅ @revenuecat/purchases-capacitor-ui installed successfully"
-            echo "Version: $(node -p "require('@revenuecat/purchases-capacitor-ui/package.json').version")"
-          else
-            echo "❌ @revenuecat/purchases-capacitor-ui not found in node_modules"
-            exit 1
-          fi
+          echo "=== Verifying key package installations ==="
+          for pkg in \
+            "@revenuecat/purchases-capacitor" \
+            "@revenuecat/purchases-capacitor-ui" \
+            "@capacitor/core" \
+            "@capacitor/ios" \
+            "@capacitor/android" \
+            "@capacitor/app" \
+            "@capacitor/browser" \
+            "@capacitor/device" \
+            "@capacitor/status-bar" \
+            "@capacitor/cli"; do
+            if [ -d "node_modules/$pkg" ]; then
+              echo "✅ $pkg: $(node -p "require('$pkg/package.json').version")"
+            else
+              echo "❌ $pkg NOT FOUND"
+              exit 1
+            fi
+          done
+
+          echo "✅ All dependencies verified"
 
       # PHASE 3: BUILD REACT APP
       - name: Build React App
@@ -121,12 +126,14 @@ workflows:
           install! 'cocoapods', :deterministic_uuids => false, :integrate_targets => true
 
           target 'App' do
-            pod 'RevenuecatPurchasesCapacitor', :path => '../../node_modules/@revenuecat/purchases-capacitor'
+            pod 'RevenuecatPurchasesCapacitor',   :path => '../../node_modules/@revenuecat/purchases-capacitor'
             pod 'RevenuecatPurchasesCapacitorUi', :path => '../../node_modules/@revenuecat/purchases-capacitor-ui'
-            pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
-            pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
-            pod 'CapacitorApp', :path => '../../node_modules/@capacitor/app'
-            pod 'CapacitorStatusBar', :path => '../../node_modules/@capacitor/status-bar'
+            pod 'Capacitor',                      :path => '../../node_modules/@capacitor/ios'
+            pod 'CapacitorCordova',               :path => '../../node_modules/@capacitor/ios'
+            pod 'CapacitorApp',                   :path => '../../node_modules/@capacitor/app'
+            pod 'CapacitorBrowser',               :path => '../../node_modules/@capacitor/browser'
+            pod 'CapacitorDevice',                :path => '../../node_modules/@capacitor/device'
+            pod 'CapacitorStatusBar',             :path => '../../node_modules/@capacitor/status-bar'
           end
 
           post_install do |installer|
@@ -330,7 +337,7 @@ workflows:
           PLIST_PATH="Info.plist"
           
           # Get current version and build number
-          CURRENT_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST_PATH" 2>/dev/null || echo "2.3")
+          CURRENT_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST_PATH" 2>/dev/null || echo "2.4")
           CURRENT_BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$PLIST_PATH" 2>/dev/null || echo "1")
           
           echo "Current version: $CURRENT_VERSION"
@@ -346,7 +353,7 @@ workflows:
             PATCH="0"
           fi
           
-          # Increment patch version (2.3 → 2.4)
+          # Increment patch version (2.4 → 2.5)
           NEW_PATCH=$((PATCH + 1))
           NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
           
@@ -376,8 +383,8 @@ workflows:
           # Critical validation - ensure CFBundleShortVersionString is set
           if [ -z "$FINAL_VERSION" ] || [[ "$FINAL_VERSION" == *"$"* ]]; then
             echo "❌ CRITICAL: CFBundleShortVersionString is not properly set!"
-            echo "Setting fallback version: 2.4"
-            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 2.4" "$PLIST_PATH"
+            echo "Setting fallback version: 2.5"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 2.5" "$PLIST_PATH"
             /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_BUILD" "$PLIST_PATH"
           fi
           

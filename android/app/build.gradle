@@ -1,14 +1,14 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "com.yourcompany.daretoconnect"
+    namespace "daretoconnect.app.mobile"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.yourcompany.daretoconnect"
+        applicationId "daretoconnect.app.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 3
-        versionName "2.3"
+        versionCode 6
+        versionName "2.4"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
@@ -24,7 +24,7 @@ android {
     }
     buildTypes {
         release {
-            signingConfig signingConfigs.release   // ← this line was missing!
+            signingConfig signingConfigs.release  
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

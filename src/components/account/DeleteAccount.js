@@ -11,10 +11,13 @@ import {
   Snackbar,
   CircularProgress
 } from '@mui/material';
-import { FaArrowLeft, FaExclamationTriangle } from 'react-icons/fa';
+import { FaExclamationTriangle } from 'react-icons/fa';
 import './DeleteAccount.css';
+import { IoIosArrowBack } from "react-icons/io";
+import { useStatusBar } from '../../hooks/useStatusBar';
 
 const DeleteAccount = () => {
+  useStatusBar('dark', '#ffffff');
   const navigate = useNavigate();
   const { logout } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -56,9 +59,9 @@ const DeleteAccount = () => {
   };
 
   return (
-    <div className="delete-account-page">
-      <div className="delete-account-header">
-        <FaArrowLeft onClick={() => navigate('/account')} />
+    <div className="standalone-page">
+      <div className="game-details-header">
+        <IoIosArrowBack className='back-button' onClick={() => navigate('/account')} />
         <span>Delete Account</span>
       </div>
 

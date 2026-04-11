@@ -5,12 +5,17 @@ const config: CapacitorConfig = {
   appName: 'dare-to-connect-app',
   webDir: 'build',
   ios: {
-    contentInset: 'automatic'   // Handles safe areas automatically
+    contentInset: 'never',
+    scrollEnabled: false
+  },
+  android: {
+    captureInput: true
   },
   plugins: {
     StatusBar: {
-      style: 'default',         // or 'dark' / 'light'
-      backgroundColor: '#ffffff'
+      style: 'DARK',              // dark icons on white — overridden per-screen anyway
+      backgroundColor: '#ffffff',
+      overlaysWebView: true
     }
   }
 };

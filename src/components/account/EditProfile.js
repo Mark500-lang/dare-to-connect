@@ -16,8 +16,10 @@ import {
   CircularProgress 
 } from '@mui/material';
 import './EditProfile.css';
+import { useStatusBar } from '../../hooks/useStatusBar';
 
 const EditProfile = () => {
+  useStatusBar('dark', '#ffffff');
   const navigate = useNavigate();
   const { user, updateProfile, updateProfilePicture } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -212,10 +214,10 @@ const EditProfile = () => {
   };
 
   return (
-    <div className="edit-profile-page">
-      <div className="edit-profile-header">
-        <IoIosArrowBack onClick={() => navigate('/account')} />
-        <span>Edit Profile</span>
+    <div className="standalone-page">
+      <div className="game-details-header">
+        <IoIosArrowBack className='back-button' onClick={() => navigate('/account')} />
+        <h2 className='game-details-title'>Edit Profile</h2>
       </div>
 
       {/* TOP SECTION */}

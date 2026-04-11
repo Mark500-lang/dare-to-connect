@@ -8,6 +8,7 @@ import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
 import { Alert, Snackbar, CircularProgress, MenuItem, Select, FormControl, InputLabel } from '@mui/material';
 import './Auth.css';
+import { useStatusBar } from '../../hooks/useStatusBar';
 
 const Register = () => {
     const navigate = useNavigate();
@@ -236,13 +237,12 @@ const Register = () => {
     };
 
     return (
-        <div className="auth-page">
+        <div className="standalone-page">
             <div className="game-details-header">
                 <IoIosArrowBack 
                     className="back-button" 
                     onClick={handleBack} 
-                    aria-label="Go back" 
-                    size={24} 
+                    aria-label="Go back"
                     color="#000000ff" 
                 />
                 <h1 className='game-details-title'>Register</h1>

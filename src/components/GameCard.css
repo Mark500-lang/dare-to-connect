@@ -1,19 +1,24 @@
 .game-card-container {
-    min-height: 100vh;
+    height: 100%;          
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
 }
 
 .game-card-header {
     display: flex;
     align-items: center;
-    padding: 20px;
-    position: fixed;
+    background: rgba(255, 255, 255, 0.95);
+    position: sticky;   
     top: 0;
     left: 0;
     right: 0;
     z-index: 100;
-    background: rgba(255, 255, 255, 0.95);
+    flex-shrink: 0;
+    /* Safe area top padding */
+    padding: calc(env(safe-area-inset-top) + 12px) 20px 12px;
 }
 
 .back-button {
@@ -40,7 +45,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 80px 20px 30px;
+    padding: 20px 20px 30px; 
 }
 
 /* Centered Content Container */

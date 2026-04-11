@@ -16,7 +16,8 @@ export const API_CONFIG = {
         CITIES: '/getCities',
         UPDATE_PROFILE: '/updateProfile',
         CHANGE_PASSWORD: '/changePassword',
-        FORGOT_PASSWORD: '/forgotPass'
+        FORGOT_PASSWORD: '/forgotPass',
+        CHECK_VERSION: '/checkVersion',
     },
     
     HEADERS: {

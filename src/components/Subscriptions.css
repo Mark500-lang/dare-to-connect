@@ -18,18 +18,6 @@
   background: rgba(255, 255, 255, 0.95);
 }
 
-.subscriptions-header .back-icon {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  margin-right: 15px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .subscriptions-header .header-title {
   font-size: 20px;
   font-weight: 600;

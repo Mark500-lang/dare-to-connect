@@ -1,7 +1,17 @@
-/* Push the entire app down below the status bar / Dynamic Island */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;           /* prevent root-level scroll bounce */
+}
+
 #root {
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  /* NO padding or safe-area here — handled per-component */
 }

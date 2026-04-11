@@ -4,8 +4,10 @@ import { IoIosArrowBack, IoIosArrowForward } from 'react-icons/io';
 import { useAuth } from '../../context/AuthContext';
 import './Account.css';
 import packageJson from '../../../package.json';
+import { useStatusBar } from '../../hooks/useStatusBar';
 
 const Account = () => {
+  useStatusBar('dark', '#ffffff');
   const navigate = useNavigate();
   const { user, logout, isAuthenticated } = useAuth();
 
@@ -21,11 +23,11 @@ const Account = () => {
   };
 
   return (
-    <div className="account-page">
+    <div className="standalone-page">
       {/* Header */}
-      <div className="account-header">
-        <IoIosArrowBack onClick={() => navigate('/library')} />
-        <h2>My Account</h2>
+      <div className="game-details-header">
+        <IoIosArrowBack className='back-button' onClick={() => navigate('/library')} />
+        <h2 className='game-details-title'>My Account</h2>
       </div>
 
       {/* User Info Card */}

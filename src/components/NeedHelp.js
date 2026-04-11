@@ -132,13 +132,12 @@ const NeedHelp = () => {
   };
 
   return (
-    <div className="need-help-page">
+    <div className=".standalone-page">
       <div className="game-details-header">
         <IoIosArrowBack 
             className="back-button" 
             onClick={() => navigate(-1)} 
             aria-label="Go back" 
-            size={24} 
             color="#000000ff" 
         />
         <h1 className='game-details-title'>Need Help</h1>

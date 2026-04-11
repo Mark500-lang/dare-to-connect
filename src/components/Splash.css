@@ -1,30 +1,33 @@
-.splash-container{
-    width: 100%;
-    min-height: 100vh;
+.splash-container {
+    position: fixed;
+    inset: 0;                   /* top/right/bottom/left: 0 — true edge to edge */
     background-color: #1674a2;
-    /* background-image: url("../assets/Christmas Backkground.png");
-    background-repeat: no-repeat;
-    background-position: top center;
-    background-size: cover; */
     display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: center;
+    /* Intentionally NO safe-area padding — splash bleeds behind status bar */
 }
-.splash-logo{
-    color: white;
+
+.splash-logo {
     width: 350px;
     height: 350px;
     margin: auto;
 }
-.splash-content{
+
+.splash-content {
     display: flex;
     flex-direction: column;
+    align-items: center;
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
+    /* Button stays above home indicator */
+    padding-bottom: max(env(safe-area-inset-bottom), 24px);
 }
-.splash-button{
+
+.splash-button {
     background-color: #fff;
     color: #1674a2;
     border: none;
@@ -33,46 +36,25 @@
     font-size: 34px;
     font-weight: bold;
     cursor: pointer;
-    margin: 0 auto 60px;
-    text-align: center;
+    margin: 0 auto 24px;
 }
 
-.promo-link{
+.promo-link {
     text-align: center;
     text-decoration: none;
     color: #fff;
     padding: 20px 0;
-    margin: 0;
-    z-index: 1000;
-    background: transparent;
     font-size: 24px;
 }
-@media (max-width: 700px) {
-    .splash-button{
-        padding: 16px 28px;
-        font-size: 22px;
-    }
 
-    .promo-link{
-        font-size: 18px;
-    }
-    .splash-logo{
-        width: 280px;
-        height: 280px;
-    }
+@media (max-width: 700px) {
+    .splash-button { padding: 16px 28px; font-size: 22px; }
+    .promo-link    { font-size: 18px; }
+    .splash-logo   { width: 280px; height: 280px; }
 }
 
 @media (max-width: 480px) {
-    .splash-button{
-        padding: 12px 22px;
-        font-size: 18px;
-    }
-    .splash-logo{
-        width: 250px;
-        height: 250px;
-    }
-    
-    .promo-link{
-        font-size: 15px;
-    }
+    .splash-button { padding: 12px 22px; font-size: 18px; }
+    .splash-logo   { width: 250px; height: 250px; }
+    .promo-link    { font-size: 15px; }
 }

@@ -7,8 +7,10 @@ import { IoIosArrowBack } from "react-icons/io";
 import { IoArrowBackCircle, IoArrowForwardCircle } from "react-icons/io5";
 import { TbCards } from "react-icons/tb";
 import './GameCard.css';
+import { useStatusBar } from '../hooks/useStatusBar';
 
 const GameCard = () => {
+    useStatusBar('dark', '#ffffff');
     const { gameId } = useParams();
     const navigate = useNavigate();
     const { subscription } = useAuth();
@@ -249,7 +251,7 @@ const GameCard = () => {
                     {/* Card and Navigation Container */}
                     <div className="card-nav-container">
                         {/* Left Navigation Button */}
-                        <button 
+                        <IoArrowBackCircle
                             className="nav-button"
                             onClick={handlePrevCard}
                             disabled={isFirstQuestion}
@@ -258,9 +260,9 @@ const GameCard = () => {
                                 color: game.color || '#FF6B6B',
                                 opacity: isFirstQuestion ? 0.3 : 1
                             }}
-                        >
-                            <IoArrowBackCircle size="100%" />
-                        </button>
+                        />
+                             {/* size="100%" />
+                        </button> */}
 
                         {/* Card Stack Container */}
                         <div className="card-stack-wrapper" ref={cardStackRef}>

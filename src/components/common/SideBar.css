@@ -124,8 +124,8 @@
 }
 
 .sidebar-label {
-    font-size: 15px;
-    font-weight: 500;
+    font-size: 16px;
+    font-weight: 600;
     transition: transform 0.3s ease;
 }
 
@@ -134,16 +134,26 @@
     .SideBar-container {
         left: 0;
         transform: translateX(0);
+        width: 350px;
     }
     
     .SideBar-container.closed {
-        transform: translateX(-280px);
+        transform: translateX(-350px);
     }
     
     .SideBar-container.open {
         transform: translateX(0);
     }
-    
+    .version-text {
+        font-size: 16px;
+    }
+    .sidebar-icon {
+        font-size: 30px;
+    }
+    .sidebar-label {
+        font-size: 20px;
+        font-weight: 600;
+    }
     .sidebar-close-btn {
         display: flex;
     }
@@ -199,39 +209,4 @@
     height: 100%;
     z-index: 999;
     pointer-events: none;
-}
-
-/* Swipe gesture hint animation */
-@keyframes swipeHint {
-    0% {
-        transform: translateX(0);
-        opacity: 0.3;
-    }
-    50% {
-        transform: translateX(10px);
-        opacity: 0.6;
-    }
-    100% {
-        transform: translateX(0);
-        opacity: 0.3;
-    }
-}
-
-.swipe-hint {
-    position: fixed;
-    top: 50%;
-    left: 5px;
-    transform: translateY(-50%);
-    font-size: 24px;
-    color: #1674a2;
-    opacity: 0.3;
-    animation: swipeHint 2s infinite;
-    display: none;
-    z-index: 998;
-}
-
-@media (max-width: 768px) {
-    .swipe-hint {
-        display: block;
-    }
 }

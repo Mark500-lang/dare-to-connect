@@ -8,11 +8,16 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { Alert, Snackbar, CircularProgress } from '@mui/material';
 import './Auth.css';
 import logo from '../../assets/Logos/Logo blue.png';
+import { useStatusBar } from '../../hooks/useStatusBar';
 
 const Login = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { login } = useAuth();
+
+    // Set status bar style
+    useStatusBar('dark', '#ffffff');
+
 
     // Read activation message passed by useDeepLink hook
     const activationMessage = location.state?.message || null;
@@ -79,13 +84,12 @@ const Login = () => {
     };
 
     return (
-        <div className="auth-page">
+        <div className="standalone-page">
             <div className="game-details-header">
                 <IoIosArrowBack
                     className="back-button"
                     onClick={() => navigate('/library')}
                     aria-label="Go back"
-                    size={24}
                     color="#000000ff"
                 />
                 <h1 className='game-details-title'>Sign In</h1>
