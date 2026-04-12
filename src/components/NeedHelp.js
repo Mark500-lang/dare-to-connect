@@ -132,7 +132,7 @@ const NeedHelp = () => {
   };
 
   return (
-    <div className=".standalone-page">
+    <div className="standalone-page">
       <div className="game-details-header">
         <IoIosArrowBack 
             className="back-button" 
