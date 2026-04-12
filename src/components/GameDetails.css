@@ -1,12 +1,12 @@
-/* Add these to your existing GameDetails.css */
 .standalone-page {
-    height: 100%;           /* ← was min-height: 100vh */
+    position: relative;
     display: flex;
     flex-direction: column;
+    height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
-    position: relative;
+    padding-top: env(safe-area-inset-top); /* ← add this */
 }
 
 .game-details-header {
@@ -19,8 +19,7 @@
     display: flex;
     align-items: center;
     flex-shrink: 0;
-    /* Safe area top padding lives HERE only */
-    padding: calc(env(safe-area-inset-top) + 8px) 20px 8px;
+    padding: 8px 20px 8px; /* ← remove the env(safe-area-inset-top) from here */
 }
 
 .back-button {

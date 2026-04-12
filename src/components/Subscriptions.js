@@ -190,14 +190,14 @@ const Subscriptions = () => {
     <div className="standalone-page">
 
       {/* ── Header ── */}
-      <div className="subscriptions-header">
+      <div className="game-details-header">
         <IoIosArrowBack 
           aria-label="Go back" 
           color="#000000ff" 
           onClick={() => navigate("/library")} 
           className="back-button"
         />
-        <span className="header-title">My Subscription</span>
+        <span className="game-details-title">My Subscription</span>
       </div>
 
       <Container maxWidth="sm" className="subscriptions-container">

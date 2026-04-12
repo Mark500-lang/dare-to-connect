@@ -343,9 +343,9 @@ const GameCard = () => {
     };
 
     return (
-        <div className="game-card-container">
+        <div className="standalone-page">
             {/* Header */}
-            <div className="game-card-header">
+            <div className="game-details-header">
                 <IoIosArrowBack 
                     className="back-button" 
                     onClick={handleBack} 
