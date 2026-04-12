@@ -10,15 +10,17 @@
 }
 
 .game-details-header {
-    display: flex;
-    align-items: center;
-    background: white;
     position: sticky;
     top: 0;
+    left: 0;
+    right: 0;
     z-index: 100;
+    background: white;
+    display: flex;
+    align-items: center;
     flex-shrink: 0;
-    /* Safe area only on this header */
-    padding: calc(env(safe-area-inset-top) + 12px) 20px 12px;
+    /* Safe area top padding lives HERE only */
+    padding: calc(env(safe-area-inset-top) + 8px) 20px 8px;
 }
 
 .back-button {
