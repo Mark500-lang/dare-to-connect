@@ -64,8 +64,6 @@ workflows:
 
           echo "=== Verifying key package installations ==="
           for pkg in \
-            # "@revenuecat/purchases-capacitor" \
-            # "@revenuecat/purchases-capacitor-ui" \
             "@capacitor/core" \
             "@capacitor/ios" \
             "@capacitor/android" \
