@@ -1,407 +1,448 @@
-// services/subscriptionService.js
-import { API_CONFIG, buildRequestBody, handleApiResponse, cacheService } from '../config/api';
+import { API_CONFIG, buildRequestBody, cacheService } from '../config/api';
 import authService from './authService';
 import { Purchases } from '@revenuecat/purchases-capacitor';
 import { Capacitor } from '@capacitor/core';
+import { debugLog } from '../components/DebugLogger';
+
+const RC_PACKAGE_MAP = {
+    1: '$rc_weekly',
+    2: '$rc_monthly',
+    3: '$rc_annual',
+    4: '$rc_annual',
+};
+
+const PRODUCT_ID_MAP = {
+    1: 'com.daretoconnect.bronze',
+    2: 'com.daretoconnect.silver',
+    3: 'com.daretoconnect.gold',
+    4: 'com.daretoconnect.gold',
+};
+
+// ── Sara Stories pattern: single entitlement ID ──────────────────────────────
+// Check your RevenueCat dashboard for the exact entitlement identifier
+const ENTITLEMENT_ID = 'Dare to Connect Premium';
 
 class SubscriptionService {
     constructor() {
-        this.cacheKey = 'subscription_packages';
-        this.cacheTimestamp = 'subscription_packages_timestamp';
+        this.cacheKey              = 'subscription_packages';
+        this.cacheTimestamp        = 'subscription_packages_timestamp';
         this.revenueCatInitialized = false;
-        this.platform = null;
+        this.platform              = null;
     }
 
-    async initializeRevenueCat() {
-        if (this.revenueCatInitialized) return true;
+    getPlatform() { return Capacitor.getPlatform(); }
+    isNative()    { return Capacitor.isNativePlatform(); }
 
+    getRevenueCatApiKey() {
+        const platform = this.getPlatform();
+        if (platform === 'ios')     return process.env.REACT_APP_REVENUECAT_IOS_API_KEY     || null;
+        if (platform === 'android') return process.env.REACT_APP_REVENUECAT_ANDROID_API_KEY || null;
+        return null;
+    }
+
+    // ── Force any RC result into a plain JS object ────────────────────────────
+    // This is the fix for "o is not a function" — Android Capacitor bridge
+    // returns Java proxy objects. JSON round-trip converts them to plain JS.
+    _plain(obj) {
+        try   { return JSON.parse(JSON.stringify(obj ?? {})); }
+        catch { return {}; }
+    }
+
+    // ── Sara Stories pattern: check entitlement by ID ─────────────────────────
+    _hasPremium(customerInfo) {
         try {
-            // Determine platform
-            this.platform = this.getPlatform();
-            
-            // Get API key based on platform
-            const apiKey = this.getRevenueCatApiKey();
-            if (!apiKey) {
-                console.warn('RevenueCat API key not configured for platform:', this.platform);
-                return false;
-            }
+            const plain  = this._plain(customerInfo);
+            const active = plain?.entitlements?.active ?? {};
+            debugLog('info', '[RC] Active entitlement keys:', Object.keys(active));
 
-            // Get current user ID for RevenueCat - FIXED: use getUser() not getCurrentUser()
-            const currentUser = authService.getUser(); // Changed from getCurrentUser()
-            const appUserID = currentUser?.id ? currentUser.id.toString() : null;
+            // Check named entitlement first (Sara Stories primary check)
+            if (active[ENTITLEMENT_ID]) return true;
 
-            // Configure RevenueCat
-            await Purchases.configure({
-                apiKey: apiKey,
-                appUserID: appUserID,
-                observerMode: false,
-            });
-
-            // Set debug log level for development
-            if (process.env.NODE_ENV === 'development') {
-                await Purchases.setLogLevel({ level: "DEBUG" });
-            }
-
-            this.revenueCatInitialized = true;
-            console.log('RevenueCat initialized successfully for platform:', this.platform);
-            return true;
-        } catch (error) {
-            console.error('RevenueCat initialization failed:', error);
+            // Fallback: any active entitlement at all (Sara Stories fallback)
+            return Object.keys(active).length > 0;
+        } catch (e) {
+            debugLog('warn', '[RC] _hasPremium error (non-fatal):', e.message);
             return false;
         }
     }
 
-    getPlatform() {
-        return Capacitor.getPlatform(); // 'ios', 'android', or 'web'
-    }
-
-    getRevenueCatApiKey() {
-        if (this.platform === 'ios') {
-            return process.env.REACT_APP_REVENUECAT_IOS_API_KEY || 
-                   (process.env.NODE_ENV === 'development' ? 'appl_development_key_here' : null);
-        } else if (this.platform === 'android') {
-            return process.env.REACT_APP_REVENUECAT_ANDROID_API_KEY || 
-                   (process.env.NODE_ENV === 'development' ? 'goog_development_key_here' : null);
+    _getFirstEntitlement(customerInfo) {
+        try {
+            const plain  = this._plain(customerInfo);
+            const active = plain?.entitlements?.active ?? {};
+            const values = Object.values(active);
+            return values.length > 0 ? values[0] : null;
+        } catch (e) {
+            debugLog('warn', '[RC] _getFirstEntitlement (non-fatal):', e.message);
+            return null;
         }
-        return null;
     }
 
-    // Map your backend package IDs to RevenueCat product IDs
-    getRevenueCatPackageIdentifier(packageId) {
-        const packageMap = {
-            1: '$rc_weekly',   // com.daretoconnect.bronze - 1 week
-            2: '$rc_monthly',  // com.daretoconnect.silver - 1 month
-            3: '$rc_annual',   // com.daretoconnect.gold   - 1 year
-            4: '$rc_annual',   // fallback
-        };
-        return packageMap[packageId] || null;
+    // ─────────────────────────────────────────────────────────────────────────
+    // INIT
+    // ─────────────────────────────────────────────────────────────────────────
+    async initializeRevenueCat() {
+        if (this.revenueCatInitialized) return true;
+
+        if (!this.isNative()) {
+            debugLog('warn', '[RC] Non-native platform — skipping RevenueCat init.');
+            this.revenueCatInitialized = true;
+            return true;
+        }
+
+        try {
+            this.platform  = this.getPlatform();
+            const apiKey   = this.getRevenueCatApiKey();
+
+            if (!apiKey) {
+                debugLog('error', '[RC] No API key for platform:', this.platform);
+                return false;
+            }
+
+            if (process.env.NODE_ENV !== 'production') {
+                await Purchases.setLogLevel({ level: 'DEBUG' });
+            }
+
+            await Purchases.configure({ apiKey });
+            debugLog('info', '[RC] Configured for platform:', this.platform);
+
+            // ── Sara Stories pattern exactly ──────────────────────────────
+            // Log in with user account ID so entitlements are tied to the
+            // same account across reinstalls — same as Sara Stories logIn call
+            const currentUser = authService.getUser();
+            if (currentUser?.id) {
+                await Purchases.logIn({ appUserID: String(currentUser.id) });
+                debugLog('info', '[RC] Logged in as user ID:', currentUser.id);
+            } else {
+                debugLog('warn', '[RC] No user found — RC using anonymous ID');
+            }
+
+            // Load offerings and log them
+            await this._logOfferings();
+
+            this.revenueCatInitialized = true;
+            debugLog('success', '[RC] Initialization complete');
+            return true;
+
+        } catch (error) {
+            debugLog('error', '[RC] Init failed:', error.message);
+            this.revenueCatInitialized = true;
+            return false;
+        }
     }
 
+    async _logOfferings() {
+        try {
+            const { current } = await Purchases.getOfferings();
+            if (!current) {
+                debugLog('warn', '[RC] No current offering returned');
+                return;
+            }
+            const packages = Object.values(current.availablePackages);
+            debugLog('info', '[RC] Offerings loaded:', packages.map(p => ({
+                rcId:      p.identifier,
+                productId: p.product?.productIdentifier,
+                price:     p.product?.priceString,
+                title:     p.product?.title,
+            })));
+        } catch (e) {
+            debugLog('warn', '[RC] _logOfferings failed:', e.message);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PACKAGES
+    // ─────────────────────────────────────────────────────────────────────────
     async getPaymentPackages(forceRefresh = false) {
-        // Check cache first
         const cached = cacheService.getItem(this.cacheKey);
-        const timestamp = cacheService.getItem(this.cacheTimestamp);
-        const cacheAge = timestamp ? Date.now() - timestamp : Infinity;
-        const isCacheValid = cacheAge < API_CONFIG.CACHE_DURATION.GAMES;
-        
-        if (!forceRefresh && cached && cached.length > 0 && isCacheValid) {
-            console.log('Returning cached subscription packages');
-            return cached;
-        }
+        const ts     = cacheService.getItem(this.cacheTimestamp);
+        const age    = ts ? Date.now() - ts : Infinity;
+        const valid  = age < API_CONFIG.CACHE_DURATION.GAMES;
+
+        if (!forceRefresh && cached?.length > 0 && valid) return cached;
 
         try {
             const accessToken = authService.getAccessToken();
-            const requestData = buildRequestBody({ 
-                hashedKey: API_CONFIG.API_KEY,
-                accessToken 
-            });
-
-            const response = await fetch(`${API_CONFIG.BASE_URL}/getPaymentPackages`, {
-                method: 'POST',
+            const response    = await fetch(`${API_CONFIG.BASE_URL}/getPaymentPackages`, {
+                method:  'POST',
                 headers: API_CONFIG.HEADERS,
-                body: JSON.stringify(requestData)
+                body:    JSON.stringify(buildRequestBody({ accessToken })),
             });
 
-            const result = await handleApiResponse(response, 'getPaymentPackages');
-            
-            if (result && Array.isArray(result)) {
-                cacheService.setItem(this.cacheKey, result, API_CONFIG.CACHE_DURATION.GAMES);
-                cacheService.setItem(this.cacheTimestamp, Date.now());
-                return result;
-            }
-            
-            return result || [];
+            const data = JSON.parse(await response.text());
+            if (data.status?.toLowerCase() !== 'ok') throw new Error(data.message || 'Failed to fetch packages');
+
+            const result = Array.isArray(data.result) ? data.result : [];
+            cacheService.setItem(this.cacheKey, result, API_CONFIG.CACHE_DURATION.GAMES);
+            cacheService.setItem(this.cacheTimestamp, Date.now());
+            return result;
+
         } catch (error) {
-            console.error('Error fetching payment packages:', error);
-            
-            if (cached && cached.length > 0) {
-                console.log('Using cached subscription packages after fetch error');
-                return cached;
-            }
-            
+            debugLog('error', '[RC] getPaymentPackages:', error.message);
+            if (cached?.length > 0) return cached;
             throw error;
         }
     }
 
-    // SINGLE METHOD: Purchase through RevenueCat and record via initiatePayment
+    // ─────────────────────────────────────────────────────────────────────────
+    // PURCHASE  —  Sara Stories pattern
+    // ─────────────────────────────────────────────────────────────────────────
     async purchasePackage(packageId) {
+        if (!this.isNative()) {
+            throw new Error('In-app purchases are only available on iOS and Android.');
+        }
+
+        debugLog('info', '[RC] Starting purchase for packageId:', packageId);
+
+        const ready = await this.initializeRevenueCat();
+        if (!ready) throw new Error('Payment system could not be initialised.');
+
+        // ── 1. Fetch offerings ────────────────────────────────────────────
+        const { current } = await Purchases.getOfferings();
+        if (!current) throw new Error('No subscription offerings available.');
+
+        const allPackages = Object.values(current.availablePackages);
+        debugLog('info', '[RC] Packages available:', allPackages.map(p => ({
+            rcId:      p.identifier,
+            productId: p.product?.productIdentifier,
+            price:     p.product?.priceString,
+        })));
+
+        // ── 2. Match package ──────────────────────────────────────────────
+        let packageToPurchase =
+            allPackages.find(p => p.identifier === RC_PACKAGE_MAP[packageId]) ||
+            allPackages.find(p => p.product?.productIdentifier === PRODUCT_ID_MAP[packageId]) ||
+            allPackages[0];
+
+        if (!packageToPurchase) throw new Error('No products available for purchase.');
+
+        debugLog('info', '[RC] Selected package:', {
+            rcId:      packageToPurchase.identifier,
+            productId: packageToPurchase.product?.productIdentifier,
+            price:     packageToPurchase.product?.priceString,
+        });
+
+        // ── 3. Create backend payment reference ───────────────────────────
+        const paymentRefData = await this.initiatePayment(packageId);
+        if (!paymentRefData?.ref_no) throw new Error('Failed to generate payment reference.');
+        debugLog('info', '[RC] Payment ref created:', paymentRefData.ref_no);
+
+        // ── 4. Trigger native purchase sheet ─────────────────────────────
+        let customerInfo;
+
         try {
-            const revenueCatReady = await this.initializeRevenueCat();
-            if (!revenueCatReady) {
-                throw new Error('In-app purchases not available on this platform.');
-            }
+            debugLog('info', '[RC] Calling Purchases.purchasePackage...');
+            const rawResult = await Purchases.purchasePackage({ aPackage: packageToPurchase });
 
-            // Step 1: Get offerings
-            const offerings = await Purchases.getOfferings();
-            const currentOffering = offerings?.current;
+            // Log the EXACT raw shape — this tells us everything
+            debugLog('info', '[RC] Raw result:', this._plain(rawResult));
 
-            console.log('Offerings debug:', JSON.stringify({
-                currentId: currentOffering?.identifier,
-                packages: currentOffering?.availablePackages?.map(p => ({
-                    id: p.identifier,
-                    productId: p.product?.productIdentifier,
-                    price: p.product?.priceString
-                }))
-            }));
+            // Sara Stories pattern: destructure customerInfo directly
+            // _plain() forces Android proxy → plain JS object
+            const plain  = this._plain(rawResult);
+            customerInfo = plain.customerInfo ?? plain;
 
-            if (!currentOffering?.availablePackages?.length) {
-                throw new Error('No subscription offerings available');
-            }
+            debugLog('info', '[RC] customerInfo:', customerInfo);
 
-            // Step 2: Find the right package
-            const rcPackageIdentifier = this.getRevenueCatPackageIdentifier(packageId);
-            if (!rcPackageIdentifier) {
-                throw new Error('No package mapping for packageId: ' + packageId);
-            }
+        } catch (purchaseError) {
+            const msg  = (purchaseError.message || '').toLowerCase();
+            const code = purchaseError.code;
 
-            const packageToPurchase = currentOffering.availablePackages.find(
-                pkg => pkg.identifier === rcPackageIdentifier
-            );
-
-            if (!packageToPurchase) {
-                throw new Error(`RC package "${rcPackageIdentifier}" not found`);
-            }
-
-            // Step 3: Generate payment reference (creates pending record)
-            const paymentRefData = await this.initiatePayment(packageId);
-            if (!paymentRefData?.ref_no) {
-                throw new Error('Failed to generate payment reference');
-            }
-            
-            console.log('Payment reference generated:', paymentRefData.ref_no);
-
-            // Step 4: Execute the purchase via RevenueCat
-            const purchaseResult = await Purchases.purchasePackage({
-                aPackage: packageToPurchase
+            debugLog('warn', '[RC] purchasePackage threw:', {
+                message: purchaseError.message,
+                code,
+                userCancelled: msg.includes('cancelled') || msg.includes('canceled') || code === '1' || code === 1
             });
 
-            if (!purchaseResult?.customerInfo) {
-                throw new Error('Purchase failed - no customer info returned');
+            if (msg.includes('cancelled') || msg.includes('canceled') || code === '1' || code === 1) {
+                throw new Error('Purchase was cancelled');
             }
 
-            console.log('Purchase successful, recording subscription...');
-
-            // Step 5: Record the completed subscription in your backend
-            await this.recordSubscription(
-                packageId,
-                paymentRefData.ref_no,
-                purchaseResult.customerInfo
-            );
-
-            return {
-                success: true,
-                paymentRef: paymentRefData.ref_no,
-                packageId,
-                customerInfo: purchaseResult.customerInfo
-            };
-
-        } catch (error) {
-            console.error('purchasePackage error:', error);
-            if (error.code === 'E_USER_CANCELLED') throw new Error('Purchase was cancelled');
-            if (error.code === 'E_NETWORK_ERROR') throw new Error('Network error. Please check your connection.');
-            if (error.code === 'E_PRODUCT_ALREADY_PURCHASED') throw new Error('You already own this subscription');
-            throw error;
+            // Android: already owned → fetch customerInfo and treat as success
+            // Sara Stories handles this exact case
+            if (msg.includes('already owned') || msg.includes('already purchased')) {
+                debugLog('info', '[RC] Already owned — fetching customerInfo.');
+                const raw = await Purchases.getCustomerInfo();
+                customerInfo = this._plain(raw?.customerInfo ?? raw);
+            } else {
+                throw purchaseError;
+            }
         }
+
+        // ── 5. Sara Stories entitlement check ────────────────────────────
+        const hasPremium = this._hasPremium(customerInfo);
+        debugLog(hasPremium ? 'success' : 'warn',
+            '[RC] hasPremium:', hasPremium,
+            '| Entitlements:', this._plain(customerInfo?.entitlements?.active)
+        );
+
+        if (!hasPremium) {
+            // Sara Stories: log warning but still proceed
+            // RC can have propagation delay on first purchase
+            debugLog('warn', '[RC] No active entitlement yet — may be propagation delay. Proceeding with record.');
+        }
+
+        // ── 6. Record in backend ──────────────────────────────────────────
+        await this.recordSubscription(packageId, paymentRefData.ref_no, customerInfo);
+
+        debugLog('success', '[RC] Purchase flow complete for packageId:', packageId);
+        return { success: true, paymentRef: paymentRefData.ref_no, packageId, customerInfo };
     }
 
-    // record subscription in backend after successful purchase
+    // ─────────────────────────────────────────────────────────────────────────
+    // INITIATE PAYMENT
+    // ─────────────────────────────────────────────────────────────────────────
+    async initiatePayment(packageId) {
+        const accessToken = authService.getAccessToken();
+        if (!accessToken) throw new Error('Not logged in.');
+
+        debugLog('info', '[RC] initiatePayment for packageId:', packageId);
+
+        const response = await fetch(`${API_CONFIG.BASE_URL}/initiatePayment`, {
+            method:  'POST',
+            headers: API_CONFIG.HEADERS,
+            body:    JSON.stringify({
+                hashedKey:  API_CONFIG.API_KEY,
+                accessToken,
+                packageId:  parseInt(packageId, 10),
+            }),
+        });
+
+        const text = await response.text();
+        debugLog('info', '[RC] initiatePayment response:', text);
+
+        let data;
+        try   { data = JSON.parse(text); }
+        catch { throw new Error('Invalid server response from initiatePayment.'); }
+
+        if (data.status?.toLowerCase() !== 'ok') throw new Error(data.message || 'Payment initiation failed.');
+
+        const result = data.result;
+        if (result?.ref_no)             return result;
+        if (result?.refNo)              return { ref_no: result.refNo };
+        if (typeof result === 'string') return { ref_no: result };
+
+        throw new Error('No payment reference returned from backend.');
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // RECORD SUBSCRIPTION
+    // ─────────────────────────────────────────────────────────────────────────
     async recordSubscription(packageId, refNo, customerInfo) {
         try {
-            const accessToken = authService.getAccessToken();
+            const accessToken   = authService.getAccessToken();
+            const entitlement   = this._getFirstEntitlement(customerInfo);
+            const expirationDate    = entitlement?.expirationDate ?? entitlement?.expiration_date ?? null;
+            const productIdentifier = entitlement?.productIdentifier ?? entitlement?.product_identifier ?? '';
 
-            // Extract the transaction ID from RevenueCat customer info
-            const activeEntitlements = customerInfo?.entitlements?.active || {};
-            const entitlementValues = Object.values(activeEntitlements);
-            const latestTransaction = entitlementValues[0];
-
-            const requestData = {
-                hashedKey: API_CONFIG.API_KEY,
-                accessToken,
-                packageId: parseInt(packageId),
-                refNo,
-                transactionId: latestTransaction?.productIdentifier || '',
-                originalTransactionId: latestTransaction?.originalPurchaseDate || '',
-                expiryDate: latestTransaction?.expirationDate || null,
-            };
-
-            console.log('Recording subscription:', requestData);
-
-            const response = await fetch(`${API_CONFIG.BASE_URL}/recordSubscription`, {
-                method: 'POST',
-                headers: API_CONFIG.HEADERS,
-                body: JSON.stringify(requestData)
+            debugLog('info', '[RC] recordSubscription payload:', {
+                packageId, refNo, productIdentifier, expirationDate
             });
 
-            const responseText = await response.text();
-            console.log('recordSubscription response:', responseText);
+            const response = await fetch(`${API_CONFIG.BASE_URL}/recordSubscription`, {
+                method:  'POST',
+                headers: API_CONFIG.HEADERS,
+                body:    JSON.stringify({
+                    hashedKey:             API_CONFIG.API_KEY,
+                    accessToken,
+                    packageId:             parseInt(packageId, 10),
+                    refNo,
+                    transactionId:         productIdentifier,
+                    originalTransactionId: productIdentifier,
+                    expiryDate:            expirationDate,
+                }),
+            });
 
-            const data = JSON.parse(responseText);
-            
+            const text = await response.text();
+            debugLog('info', '[RC] recordSubscription response:', text);
+
+            let data;
+            try   { data = JSON.parse(text); }
+            catch { return null; }
+
             if (data.status?.toLowerCase() !== 'ok') {
-                // Don't throw here - purchase already succeeded
-                // Just log the error, user has paid
-                console.error('Failed to record subscription in backend:', data.message);
+                debugLog('error', '[RC] recordSubscription backend error:', data.message);
+            } else {
+                debugLog('success', '[RC] Subscription recorded in backend successfully');
             }
 
             return data;
+
         } catch (error) {
-            // Don't throw - the Apple purchase already went through
-            // Log it for investigation but don't fail the user
-            console.error('recordSubscription error (non-fatal):', error.message);
+            // Non-fatal — purchase already succeeded at RC level
+            debugLog('error', '[RC] recordSubscription failed (non-fatal):', error.message);
+            return null;
         }
     }
 
-    // Use existing backend endpoint to initiate payment
-    async initiatePayment(packageId) {
-        try {
-            const accessToken = authService.getAccessToken();
-            
-            // Debug - log exactly what we're sending
-            console.log('initiatePayment called with:', { packageId, hasToken: !!accessToken });
-            
-            if (!accessToken) {
-                throw new Error('No access token - user not logged in');
-            }
-
-            const requestData = {
-                hashedKey: API_CONFIG.API_KEY,
-                accessToken,
-                packageId: parseInt(packageId), // Ensure it's a number, not string
-            };
-
-            console.log('Sending to initiatePayment:', requestData);
-
-            const response = await fetch(`${API_CONFIG.BASE_URL}/initiatePayment`, {
-                method: 'POST',
-                headers: API_CONFIG.HEADERS,
-                body: JSON.stringify(requestData)
-            });
-
-            // Log raw response before processing
-            const responseText = await response.text();
-            console.log('initiatePayment raw response:', responseText);
-
-            let data;
-            try {
-                data = JSON.parse(responseText);
-            } catch (e) {
-                throw new Error('Invalid response from server: ' + responseText);
-            }
-
-            // Check backend status directly
-            if (data.status?.toLowerCase() !== 'ok') {
-                throw new Error(data.message || 'initiatePayment failed: ' + JSON.stringify(data));
-            }
-
-            const result = data.result;
-            console.log('initiatePayment result:', result);
-
-            // Handle whatever structure Payments::generateRandomRef returns
-            if (result?.ref_no) return result;
-            if (result?.refNo) return { ref_no: result.refNo };
-            if (typeof result === 'string') return { ref_no: result };
-
-            throw new Error('No ref_no in response: ' + JSON.stringify(result));
-
-        } catch (error) {
-            console.error('initiatePayment error:', error.message);
-            throw error;
-        }
-    }
-
-    // Use existing backend endpoint to get user subscription
+    // ─────────────────────────────────────────────────────────────────────────
+    // GET USER SUBSCRIPTION
+    // ─────────────────────────────────────────────────────────────────────────
     async getUserSubscription() {
         try {
             const accessToken = authService.getAccessToken();
-            
-            // Debug log to check if token exists
-            console.log('Access Token for subscription:', accessToken ? 'Present' : 'Missing');
-            
-            if (!accessToken) {
-                console.error('No access token available');
-                return null;
-            }
+            if (!accessToken) return null;
 
-            const requestData = buildRequestBody({ 
-                hashedKey: API_CONFIG.API_KEY,
-                accessToken // Make sure this is being sent correctly
-            });
-
-            console.log('Sending subscription request with token');
-
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.GET_SUBSCRIPTION}`, {
-                method: 'POST',
-                headers: API_CONFIG.HEADERS,
-                body: JSON.stringify(requestData)
-            });
-
-            const result = await handleApiResponse(response, 'getSubscription');
-            
-            // Log the raw result to see what's coming back
-            console.log('Subscription API result:', result);
-            
-            // Based on your Subscriptions model, the response structure might be different
-            // The checkSubscriptionDetails method returns an array with packageId, packageName, status, fromDate, toDate
-            if (result && result.subscription) {
-                return result.subscription;
-            }
-            
-            // If the API returns the subscription data directly
-            if (result && (result.packageId !== undefined || result.status)) {
-                return result;
-            }
-            
-            return null;
-        } catch (error) {
-            console.error('Error fetching user subscription:', error);
-            throw error;
-        }
-    }
-
-    async restorePurchases() {
-        try {
-            const revenueCatReady = await this.initializeRevenueCat();
-            if (!revenueCatReady) {
-                throw new Error('In-app purchases not available on this platform.');
-            }
-
-            const customerInfo = await Purchases.restorePurchases();
-            
-            if (customerInfo && customerInfo.entitlements?.active) {
-                // User has active subscriptions in RevenueCat
-                const activeEntitlements = Object.values(customerInfo.entitlements.active);
-                
-                if (activeEntitlements.length > 0) {
-                    return {
-                        success: true,
-                        message: 'Purchases restored successfully! Your subscription is now active.'
-                    };
+            const response = await fetch(
+                `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.GET_SUBSCRIPTION}`,
+                {
+                    method:  'POST',
+                    headers: API_CONFIG.HEADERS,
+                    body:    JSON.stringify(buildRequestBody({ accessToken })),
                 }
-            }
-            
-            return {
-                success: false,
-                message: 'No active subscriptions found'
-            };
+            );
+
+            const data = JSON.parse(await response.text());
+            if (data.status?.toLowerCase() !== 'ok') return null;
+
+            const result = data.result;
+            if (result?.subscription)                              return result.subscription;
+            if (result?.packageId !== undefined || result?.status) return result;
+            return null;
 
         } catch (error) {
-            console.error('Restore purchases error:', error);
-            throw error;
+            debugLog('error', '[RC] getUserSubscription:', error.message);
+            return null;
         }
     }
 
-    // Add this method for the Subscriptions.js component to call
+    // ─────────────────────────────────────────────────────────────────────────
+    // RESTORE  —  Sara Stories pattern exactly
+    // ─────────────────────────────────────────────────────────────────────────
+    async restorePurchases() {
+        if (!this.isNative()) throw new Error('Restore is only available on iOS and Android.');
+
+        debugLog('info', '[RC] Starting restore purchases...');
+
+        const ready = await this.initializeRevenueCat();
+        if (!ready) throw new Error('Payment system could not be initialised.');
+
+        const rawResult  = await Purchases.restorePurchases();
+        debugLog('info', '[RC] Raw restore result:', this._plain(rawResult));
+
+        const customerInfo = this._plain(rawResult?.customerInfo ?? rawResult);
+        const hasPremium   = this._hasPremium(customerInfo);
+
+        debugLog(hasPremium ? 'success' : 'warn', '[RC] Restore hasPremium:', hasPremium);
+
+        if (hasPremium) {
+            return { success: true, message: 'Purchases restored successfully! Your subscription is now active.' };
+        }
+
+        return { success: false, message: 'No active subscriptions found for this account.' };
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // GET CUSTOMER INFO
+    // ─────────────────────────────────────────────────────────────────────────
     async getCustomerInfo() {
         try {
-            const revenueCatReady = await this.initializeRevenueCat();
-            if (!revenueCatReady) {
-                return null;
-            }
-
-            const customerInfo = await Purchases.getCustomerInfo();
-            return customerInfo;
+            const ready = await this.initializeRevenueCat();
+            if (!ready) return null;
+            const raw = await Purchases.getCustomerInfo();
+            return this._plain(raw?.customerInfo ?? raw);
         } catch (error) {
-            console.error('Error getting customer info:', error);
+            debugLog('error', '[RC] getCustomerInfo:', error.message);
             return null;
         }
     }
@@ -412,6 +453,5 @@ class SubscriptionService {
     }
 }
 
-// Create and export singleton instance
 const subscriptionService = new SubscriptionService();
 export default subscriptionService;

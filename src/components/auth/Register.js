@@ -90,18 +90,20 @@ const Register = () => {
         const errors = {};
         let isValid = true;
 
-        if (!formData.firstName.trim()) {
-            errors.firstName = 'First name is required';
-            isValid = false;
-        } else if (formData.firstName.trim().length < 3) {
+        // if (!formData.firstName.trim()) {
+        //     errors.firstName = 'First name is required';
+        //     isValid = false;
+        // } else 
+            if (formData.lastName && formData.firstName.trim().length < 3) {
             errors.firstName = 'First name must be at least 3 characters';
             isValid = false;
         }
 
-        if (!formData.lastName.trim()) {
-            errors.lastName = 'Last name is required';
-            isValid = false;
-        } else if (formData.lastName.trim().length < 3) {
+        // if (!formData.lastName.trim()) {
+        //     errors.lastName = 'Last name is required';
+        //     isValid = false;
+        // } else 
+            if (formData.lastName && formData.lastName.trim().length < 3) {
             errors.lastName = 'Last name must be at least 3 characters';
             isValid = false;
         }
@@ -255,7 +257,7 @@ const Register = () => {
                     {/* ROW 1 */}
                     <div className="row">
                         <TextField
-                            label="First Name*"
+                            label="First Name"
                             variant="standard"
                             name="firstName"
                             fullWidth
@@ -267,7 +269,7 @@ const Register = () => {
                             helperText={formErrors.firstName}
                         />
                         <TextField
-                            label="Last Name*"
+                            label="Last Name"
                             variant="standard"
                             name="lastName"
                             fullWidth
@@ -327,7 +329,7 @@ const Register = () => {
                                 name="cityId"
                                 value={formData.cityId}
                                 onChange={handleChange}
-                                label="City*"
+                                label="City"
                                 error={!!formErrors.cityId}
                             >
                                 <MenuItem value="">

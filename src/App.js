@@ -23,6 +23,7 @@ import DeleteAccount from './components/account/DeleteAccount';
 import TellAFriend from './components/TellAFriend';
 import Subscriptions from './components/Subscriptions';
 import NeedHelp from './components/NeedHelp';
+// import DebugPanel from './components/DebugPanel';
 
 // Inner component — must be inside <Router> for useDeepLink's useNavigate to work
 function AppRoutes() {
@@ -31,6 +32,7 @@ function AppRoutes() {
   return (
     <>
       <NetworkStatusMonitor />
+      {/* <DebugPanel />  */}
       <Routes>
         <Route index element={<Splash />} />
         <Route path="/" element={<Layout />}>

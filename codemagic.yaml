@@ -51,7 +51,7 @@ workflows:
           
           # Clean install with aligned versions
           rm -rf node_modules package-lock.json
-          npm install @revenuecat/purchases-capacitor@12.1.1 @revenuecat/purchases-capacitor-ui@12.1.1 --save-exact
+          # npm install @revenuecat/purchases-capacitor@12.1.1 @revenuecat/purchases-capacitor-ui@12.1.1 --save-exact
           
           # Use npm install instead of npm ci since we just regenerated package-lock.json
           npm install
@@ -64,8 +64,8 @@ workflows:
 
           echo "=== Verifying key package installations ==="
           for pkg in \
-            "@revenuecat/purchases-capacitor" \
-            "@revenuecat/purchases-capacitor-ui" \
+            # "@revenuecat/purchases-capacitor" \
+            # "@revenuecat/purchases-capacitor-ui" \
             "@capacitor/core" \
             "@capacitor/ios" \
             "@capacitor/android" \
@@ -126,8 +126,8 @@ workflows:
           install! 'cocoapods', :deterministic_uuids => false, :integrate_targets => true
 
           target 'App' do
-            pod 'RevenuecatPurchasesCapacitor',   :path => '../../node_modules/@revenuecat/purchases-capacitor'
-            pod 'RevenuecatPurchasesCapacitorUi', :path => '../../node_modules/@revenuecat/purchases-capacitor-ui'
+            # pod 'RevenuecatPurchasesCapacitor',   :path => '../../node_modules/@revenuecat/purchases-capacitor'
+            # pod 'RevenuecatPurchasesCapacitorUi', :path => '../../node_modules/@revenuecat/purchases-capacitor-ui'
             pod 'Capacitor',                      :path => '../../node_modules/@capacitor/ios'
             pod 'CapacitorCordova',               :path => '../../node_modules/@capacitor/ios'
             pod 'CapacitorApp',                   :path => '../../node_modules/@capacitor/app'
@@ -155,12 +155,12 @@ workflows:
           
           pod install --repo-update
           
-          if grep -q "RevenuecatPurchasesCapacitorUi" Podfile.lock; then
-            echo "✅ RevenueCat UI successfully installed"
-          else
-            echo "❌ RevenueCat UI not found in Podfile.lock"
-            exit 1
-          fi
+          # if grep -q "RevenuecatPurchasesCapacitorUi" Podfile.lock; then
+          #   echo "✅ RevenueCat UI successfully installed"
+          # else
+          #   echo "❌ RevenueCat UI not found in Podfile.lock"
+          #   exit 1
+          # fi
           
           cd ../..
           echo "✅ iOS dependencies configured successfully"
@@ -353,7 +353,7 @@ workflows:
             PATCH="0"
           fi
           
-          # Increment patch version (2.7 → 2.8)
+          # Increment patch version (2.8 → 2.9)
           NEW_PATCH=$((PATCH + 1))
           NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
           
@@ -383,8 +383,8 @@ workflows:
           # Critical validation - ensure CFBundleShortVersionString is set
           if [ -z "$FINAL_VERSION" ] || [[ "$FINAL_VERSION" == *"$"* ]]; then
             echo "❌ CRITICAL: CFBundleShortVersionString is not properly set!"
-            echo "Setting fallback version: 2.8"
-            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 2.8" "$PLIST_PATH"
+            echo "Setting fallback version: 2.9"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 2.9" "$PLIST_PATH"
             /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_BUILD" "$PLIST_PATH"
           fi
           

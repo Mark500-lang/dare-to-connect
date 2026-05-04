@@ -16,7 +16,7 @@ const SideBar = ({ onItemClick, isOpen = true, profileImage, onClose, enableGest
     const items = [
         { id: 'home', label: 'Home', icon: <IoHomeOutline /> },
         { id: 'games', label: 'Games', icon: <IoGameControllerOutline /> },
-        { id: 'subscription', label: 'My Subscription', icon: <IoList /> },
+        // { id: 'subscription', label: 'My Subscription', icon: <IoList /> },
         { id: 'account', label: 'My Account', icon: <FaRegUser /> },
         { id: 'help', label: 'Need Help', icon: <IoMailOutline /> },
         { id: 'referral', label: 'Tell a Friend', icon: <IoShareSocial /> },
@@ -29,9 +29,11 @@ const SideBar = ({ onItemClick, isOpen = true, profileImage, onClose, enableGest
         
         if (path.includes('/library')) {
             setActiveItem('games');
-        } else if (path.includes('/subscription')) {
-            setActiveItem('subscription');
-        } else if (path.includes('/account')) {
+        } 
+        // else if (path.includes('/subscription')) {
+        //     setActiveItem('subscription');
+        // } 
+        else if (path.includes('/account')) {
             setActiveItem('account');
         } else if (path.includes('/help')) {
             setActiveItem('help');
@@ -49,9 +51,9 @@ const SideBar = ({ onItemClick, isOpen = true, profileImage, onClose, enableGest
                 break;
             case 'games':
                 navigate('/library');
-                break;
-            case 'subscription':
-                navigate('/subscriptions');
+            //     break;
+            // case 'subscription':
+            //     navigate('/subscriptions');
                 break;
             case 'account':
                 navigate('/account');

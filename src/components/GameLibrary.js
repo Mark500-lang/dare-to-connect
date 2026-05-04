@@ -318,19 +318,19 @@ const GameLibrary = () => {
                             {games.map((game) => {
                                 const imageState   = imageStates[game.id] || { loading: false, loaded: false, error: false };
                                 const showSkeleton = !imageState.loaded && !imageState.error;
-                                const isLocked     = game.id !== 1 && !hasSubscription && !checkingSubscription;
-
+                                // const isLocked     = game.id !== 1 && !hasSubscription && !checkingSubscription;
+//  ${isLocked ? 'locked' : ''}
                                 return (
                                     <div
                                         key={game.id}
-                                        className={`game-card ${isLocked ? 'locked' : ''}`}
+                                        className={`game-card `}
                                         onClick={() => handleGameClick(game)}
                                     >
-                                        {isLocked && (
+                                        {/* {isLocked && (
                                             <div className="game-lock-overlay">
                                                 <IoLockClosed className="lock-icon" />
                                             </div>
-                                        )}
+                                        )} */}
 
                                         <div className="game-card-image-container">
                                             {!imageState.error && (

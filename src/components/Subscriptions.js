@@ -334,11 +334,10 @@ const Subscriptions = () => {
 
               {/* Auto-renewal legal text — Apple required */}
               <Typography className="disclosure-legal">
-                Payment will be charged to your Apple account at confirmation of purchase.
-                Subscription automatically renews unless auto-renew is turned off at least
-                24 hours before the end of the current period. Your account will be charged
-                for renewal within 24 hours prior to the end of the current period.
-                Manage and cancel subscriptions in your Account Settings after purchase.
+                Payment will be charged to your account at confirmation of purchase.
+                Subscription automatically renews unless cancelled at least 24 hours
+                before the end of the current period. You can manage and cancel your
+                subscription in your device's Account Settings at any time after purchase.
               </Typography>
 
               {/* Functional links — Apple required */}
