@@ -299,7 +299,7 @@ const Register = () => {
                     {/* Country and City Selection */}
                     <div className="row">
                         <FormControl fullWidth variant="standard" sx={muiInputSx} disabled={loading || loadingCountries}>
-                            <InputLabel>Country*</InputLabel>
+                            <InputLabel>Country</InputLabel>
                             <Select
                                 name="countryId"
                                 value={formData.countryId}
