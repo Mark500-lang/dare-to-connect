@@ -1,474 +1,394 @@
-/* ── Header ── */
-.subscriptions-header {
-  position: sticky;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  background: white;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-  /* Safe area top padding lives HERE only */
-  padding: calc(env(safe-area-inset-top) + 8px) 20px 8px;
+/* ─────────────────────────────────────────────────────────────────────────────
+   Subscriptions.css — pack purchase screen
+───────────────────────────────────────────────────────────────────────────── */
+
+.subs-scroll-container {
+    flex: 1;
+    /* overflow-y: auto;
+    -webkit-overflow-scrolling: touch; */
+    padding: 16px 20px calc(env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
-.subscriptions-header .header-title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
-  color: #333;
+.subs-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 20px;
+    gap: 16px;
 }
 
-/* ── Container ── */
-.subscriptions-container {
-  padding: 20px;
-}
-
-/* ── Page Title ── */
-.app-store-header {
-  text-align: center;
-  margin-bottom: 20px;
-  padding: 0 10px;
-}
-
-.app-store-header .main-title {
-  font-weight: 700;
-  color: #333;
-  margin-bottom: 8px !important;
-}
-
-/* ── Package Cards Container ── */
-.packages-vertical-container {
-  margin: 10px 0;
-  padding: 0;
-}
-
-.packages-vertical-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: 100%;
-}
-
-/* ── Package Card ── */
-.package-card-vertical {
-  width: 100%;
-  padding: 0;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  border: 2px solid transparent;
-  background: white;
-  margin-bottom: 4px;
-}
-
-.package-card-vertical:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
-}
-
-.package-card-vertical.selected {
-  border-color: #1674a2;
-  background: linear-gradient(135deg, #ffffff 0%, #f0f8ff 100%);
-  box-shadow: 0 4px 20px rgba(22, 116, 162, 0.15);
-}
-
-.package-card-vertical.popular {
-  border-color: #ffd700;
-}
-
-.package-card-vertical.best-value {
-  border-color: #c0c0c0;
-}
-
-/* ── Badges ── */
-.package-badge {
-  position: absolute;
-  top: -8px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 3px 10px;
-  border-radius: 10px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  z-index: 2;
-}
-
-.popular-badge {
-  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
-  color: #333;
-}
-
-.value-badge {
-  background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%);
-  color: #333;
-}
-
-/* ── Package Content ── */
-.package-content-vertical {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px;
-}
-
-.package-header-vertical {
-  margin-bottom: 4px;
-}
-
-.package-name-vertical {
-  font-weight: 700;
-  color: #333;
-  font-size: 16px;
-  line-height: 1.2;
-  margin-bottom: 2px !important;
-}
-
-.package-description-vertical {
-  font-size: 12px;
-  line-height: 1.3;
-  color: #666;
-}
-
-/* ── Price Section ── */
-.price-section-vertical {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  margin-top: 4px;
-}
-
-.package-price-vertical {
-  font-weight: 800;
-  color: #1674a2;
-  line-height: 1;
-  font-size: 1.8rem;
-  margin: 0 !important;
-}
-
-.selected .package-price-vertical {
-  color: #0d5a7d;
-}
-
-.price-details-vertical {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-}
-
-.price-period-vertical {
-  font-size: 13px;
-  color: #666;
-  font-weight: 500;
-  line-height: 1;
-}
-
-.price-per-month-vertical {
-  color: #666;
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 1;
-}
-
-/* ── Selection Dot ── */
-.selection-indicator-vertical {
-  display: flex;
-  justify-content: center;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #f0f0f0;
-}
-
-.selection-dot-vertical {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #e0e0e0;
-  transition: all 0.2s ease;
-}
-
-.selection-dot-vertical.selected {
-  background: #1674a2;
-  transform: scale(1.1);
-  box-shadow: 0 0 0 2px rgba(22, 116, 162, 0.2);
-}
-
-/* ── Current Plan Card ── */
-.current-plan-card {
-  background: linear-gradient(135deg, #1674a2 0%, #0d5a7d 100%);
-  color: rgba(0, 0, 0, 0.774) !important;
-  padding: 16px;
-  border-radius: 12px;
-  margin: 20px 0;
-}
-
-.current-plan-content {
-  text-align: center;
-}
-
-.current-plan-title {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  opacity: 0.9;
-  margin-bottom: 6px !important;
-}
-
-.current-plan-name {
-  font-weight: 700;
-  margin-bottom: 4px !important;
-  font-size: 16px;
-}
-
-/* ── Subscribe Section ── */
-.subscribe-section {
-  margin: 25px 0 15px;
-  text-align: center;
-}
-
-/* ──────────────────────────────────────────────────────────
-   APPLE GUIDELINE 3.1.2 — Subscription Disclosure Block
-   Positioned ABOVE the subscribe button so all required
-   info is visible before the user commits to purchase.
-   Required content:
-     • Title of service
-     • Length of each subscription period
-     • Price (and price per unit where appropriate)
-     • Functional Privacy Policy link
-     • Functional Terms of Use (EULA) link
-     • Auto-renewal disclosure
-────────────────────────────────────────────────────────── */
-.subscription-disclosure {
-  background: #f8f9fa;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
-  text-align: left;
-}
-
-.disclosure-title {
-  font-weight: 700 !important;
-  font-size: 14px !important;
-  color: #1a1a1a;
-  display: block;
-  margin-bottom: 2px !important;
-  line-height: 1.4 !important;
-}
-
-.disclosure-subtitle {
-  font-size: 12px !important;
-  color: #666;
-  display: block;
-  margin-bottom: 12px !important;
-  line-height: 1.4 !important;
-}
-
-.disclosure-plans {
-  border-top: 1px solid #e8e8e8;
-  padding-top: 10px;
-  margin-bottom: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.disclosure-plan-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 3px 0;
-}
-
-.disclosure-plan-row.active .disclosure-plan-name,
-.disclosure-plan-row.active .disclosure-plan-price {
-  color: #1674a2;
-  font-weight: 700;
-}
-
-.disclosure-plan-name {
-  font-size: 12px !important;
-  color: #444;
-  line-height: 1.4 !important;
-}
-
-.disclosure-plan-price {
-  font-size: 12px !important;
-  color: #444;
-  line-height: 1.4 !important;
-  text-align: right;
-}
-
-.disclosure-per-month {
-  font-size: 10px;
-  color: #888;
-}
-
-.disclosure-legal {
-  display: block;
-  font-size: 10px !important;
-  color: #888;
-  line-height: 1.6 !important;
-  margin-bottom: 12px !important;
-}
-
-.disclosure-links {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  justify-content: center;
-}
-
-.disclosure-link {
-  font-size: 12px;
-  color: #1674a2;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.disclosure-link:hover {
-  color: #0d5a7d;
-}
-
-.disclosure-separator {
-  font-size: 11px;
-  color: #bbb;
-}
-/* ── END DISCLOSURE STYLES ── */
-
-/* ── Subscribe Button ── */
-.subscribe-button {
-  background: linear-gradient(135deg, #1674a2 0%, #0d5a7d 100%) !important;
-  color: white !important;
-  padding: 16px !important;
-  border-radius: 12px !important;
-  font-weight: 700 !important;
-  font-size: 16px !important;
-  text-transform: none !important;
-  box-shadow: 0 4px 16px rgba(22, 116, 162, 0.3) !important;
-  transition: all 0.2s ease !important;
-}
-
-.subscribe-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(22, 116, 162, 0.4) !important;
-}
-
-.subscribe-button:disabled {
-  background: #ccc !important;
-  transform: none !important;
-  box-shadow: none !important;
-}
-
-.current-plan-note {
-  display: block;
-  margin-top: 6px;
-  font-size: 11px;
-  font-style: italic;
-}
-
-/* ── Restore Section ── */
-.restore-section {
-  text-align: center;
-  margin-top: 12px;
-}
-
-.restore-section .MuiButton-root {
-  color: #1674a2;
-  font-size: 13px;
-  text-transform: none;
-  padding: 4px 8px;
-}
-
-/* ── Loading States ── */
-.loading-packages {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 0;
-}
-
-.loading-text {
-  margin-top: 10px !important;
-  color: #666;
-  font-size: 13px;
-}
-
-.no-packages {
-  text-align: center;
-  padding: 40px 20px;
-  background: white;
-  border-radius: 12px;
-}
-
-.loading-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-}
-
-/* ── Responsive ── */
-@media (max-width: 768px) {
-  .subscriptions-container {
-    padding: 15px;
-  }
-
-  .package-name-vertical {
+.subs-loading-text {
     font-size: 15px;
-  }
-
-  .package-price-vertical {
-    font-size: 1.6rem;
-  }
-
-  .subscribe-button {
-    padding: 14px !important;
-    font-size: 15px !important;
-  }
+    color: #888;
+    margin: 0;
 }
 
-@media (max-width: 480px) {
-  .subscriptions-container {
-    padding: 10px;
-  }
+/* ── Pack selector: horizontal scroll row ───────────────────────────────────── */
+.pack-selector-scroll {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    /* hide scrollbar on iOS/Android but keep scroll */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.pack-selector-scroll::-webkit-scrollbar { display: none; }
 
-  .package-name-vertical {
-    font-size: 14px;
-  }
+.pack-selector-card {
+    flex: 0 0 100px;
+    border-radius: 16px;
+    border: 2.5px solid transparent;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+}
+.pack-selector-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.308);
+}
 
-  .package-price-vertical {
-    font-size: 1.5rem;
-  }
+.pack-selector-card.selected {
+    border-color: #1674a2;
+    box-shadow: 0 4px 16px rgba(22, 116, 162, 0.25);
+}
+.pack-selector-card.selected::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: #1673a249;
+}
 
-  .subscribe-button {
-    padding: 12px !important;
-    font-size: 14px !important;
-  }
+.pack-selector-card.owned {
+    border-color: #4CAF50;
+}
 
-  .subscriptions-header {
-    padding: 15px;
-    padding-top: calc(env(safe-area-inset-top) + 15px);
-  }
+.selector-card-image {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    border-radius: 13px;
+}
 
-  .header-title {
+.selector-card-image::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.788);
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+.selector-card-fallback {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 700;
+    color: white;
+    border-radius: 13px;
+}
+
+.selector-card-name {
+    position: relative;
+    z-index: 5;
+    font-size: 10px;
+    font-weight: 700;
+    color: white;
+    text-align: center;
+    padding: 0 4px 8px;
+    margin: 0;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    line-height: 1.2;
+}
+
+.selector-owned-check {
+    position: absolute;
+    top: 6px; right: 6px;
+    z-index: 10;
+    color: #4CAF50;
+    font-size: 18px;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+}
+
+.selector-best-value {
+    position: absolute;
+    top: 5px; left: 5px;
+    z-index: 10;
+    background: linear-gradient(135deg, #f5a623, #e8880a);
+    color: white;
+    font-size: 7px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 3px 6px;
+    border-radius: 50px;
+}
+
+/* ── Selected pack detail card ───────────────────────────────────────────────── */
+.pack-detail-card {
+    background: #fff;
+    border-radius: 24px;
+    /* box-shadow: 0 4px 24px rgba(0,0,0,0.08); */
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.pack-detail-image-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: #f0f0f0;
+    overflow: hidden;
+}
+
+.pack-detail-image {
+    width: 100%; height: 100%;
+    object-fit: cover;
+}
+
+.pack-detail-fallback {
+    width: 100%; height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 56px;
+    font-weight: 700;
+    color: white;
+}
+
+.pack-detail-best-value {
+    position: absolute;
+    top: 14px; right: 14px;
+    background: linear-gradient(135deg, #f5a623, #e8880a);
+    color: white;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 50px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+
+/* Owned overlay on the cover image */
+.pack-detail-owned-overlay {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: linear-gradient(to top, rgba(76,175,80,0.85), transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px;
+    color: white;
+    font-weight: 700;
     font-size: 16px;
-  }
+}
 
-  .disclosure-title {
-    font-size: 13px !important;
-  }
+.pack-detail-owned-icon { font-size: 22px; }
 
-  .disclosure-plan-name,
-  .disclosure-plan-price {
-    font-size: 11px !important;
-  }
+/* Info section */
+.pack-detail-info {
+    padding: 20px 20px 8px;
+}
+
+.pack-detail-name {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 6px;
+}
+
+.pack-detail-description {
+    font-size: 14px;
+    color: #666;
+    margin: 0 0 16px;
+    line-height: 1.5;
+}
+
+/* Games list */
+.pack-games-list { display: flex; flex-direction: column; gap: 8px; }
+
+.pack-games-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #aaa;
+    margin: 0 0 6px;
+}
+
+.pack-game-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pack-game-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.pack-game-name {
+    font-size: 15px;
+    font-weight: 500;
+    color: #333;
+}
+
+/* ── Purchase area ────────────────────────────────────────────────────────────── */
+.pack-purchase-area {
+    padding: 16px 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+}
+
+/* Owned state */
+.pack-owned-state {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #f0faf0;
+    border: 1.5px solid #4CAF50;
+    border-radius: 50px;
+    padding: 12px 24px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #4CAF50;
+    width: 100%;
+    justify-content: center;
+}
+.owned-check-icon { font-size: 22px; }
+
+/* Compliance disclosure */
+.purchase-disclosure {
+    font-size: 12px;
+    color: #999;
+    text-align: center;
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Primary purchase button */
+.purchase-btn {
+    width: 100%;
+    padding: 16px 20px;
+    border: none;
+    border-radius: 50px;
+    background-color: #1674a2;
+    color: white;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: opacity 0.2s ease, transform 0.1s ease;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+.purchase-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.purchase-btn:hover:not(:disabled) {
+    filter: brightness(1.08);
+}
+
+/* Restore button */
+.restore-btn {
+    background: none;
+    border: none;
+    color: #1674a2;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 4px 8px;
+    text-decoration: underline;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+.restore-btn:hover:not(:disabled) { opacity: 1; }
+.restore-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Legal links */
+.legal-links {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.legal-link {
+    font-size: 12px;
+    color: #aaa;
+    text-decoration: underline;
+}
+.legal-link:hover { color: #666; }
+
+.legal-sep { color: #ccc; font-size: 12px; }
+
+/* ── Your Library summary ────────────────────────────────────────────────────── */
+.your-library-section {
+    padding: 4px 0 8px;
+}
+
+.your-library-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #aaa;
+    margin: 0 0 10px;
+}
+
+.your-library-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.library-pill {
+    display: inline-flex;
+    align-items: center;
+    border: 1.5px solid #1674a2;
+    color: #1674a2;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 50px;
+    white-space: nowrap;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+    .pack-selector-card   { flex: 0 0 84px; }
+    .pack-detail-name     { font-size: 20px; }
+    .purchase-btn         { font-size: 15px; padding: 14px 16px; }
+    .pack-detail-info     { padding: 16px 16px 6px; }
+    .pack-purchase-area   { padding: 12px 16px 20px; }
 }

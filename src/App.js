@@ -9,6 +9,7 @@ import Splash from './components/Splash';
 import GameDetails from './components/GameDetails';
 import GameLibrary from './components/GameLibrary';
 import GameCard from './components/GameCard';
+import PackDetail from './components/PackDetail';
 
 /* AUTH SCREENS */
 import Login from './components/auth/Login';
@@ -51,6 +52,7 @@ function AppRoutes() {
           <Route path="help" element={<NeedHelp />} />
 
           {/* GAME PAGES */}
+          <Route path="pack/:packId" element={<PackDetail />} />
           <Route path="games/:gameId" element={<GameDetails />} />
           <Route path="card/:gameId" element={<GameCard />} />
 

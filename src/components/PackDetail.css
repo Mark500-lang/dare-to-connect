@@ -1,0 +1,140 @@
+/* PackDetail.css */
+
+.pack-detail-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: 80px 20px;
+}
+
+.pack-page-content {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 24px calc(env(safe-area-inset-bottom) + 32px);
+}
+
+/* Cover */
+.pack-page-cover {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border-radius: 20px;
+    overflow: hidden;
+    margin-bottom: 16px;
+    background: #f0f0f0;
+}
+.pack-page-cover-image {
+    width: 100%; height: 100%;
+    object-fit: cover;
+}
+.pack-page-cover-fallback {
+    width: 100%; height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 56px;
+    font-weight: 700;
+    color: white;
+}
+
+.pack-page-description {
+    font-size: 14px;
+    color: #666;
+    line-height: 1.6;
+    margin: 0 0 20px;
+}
+
+.pack-page-games-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: #aaa;
+    margin: 0 0 14px;
+}
+
+/* Games grid */
+.pack-page-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.pack-page-game-card {
+    border-radius: 20px;
+    box-shadow: -3px 3px 10px rgba(0,0,0,0.18);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 1;
+    background: #f0f0f0;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.pack-page-game-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: -3px 6px 18px rgba(0,0,0,0.2);
+}
+
+.pack-page-card-image-wrap {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+}
+
+.pack-page-card-image {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+.pack-page-card-image.loaded { opacity: 1; }
+
+.pack-page-card-fallback {
+    width: 100%; height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    font-weight: 700;
+    color: white;
+    border-radius: 20px;
+}
+
+.pack-page-card-skeleton {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: pulse 1.5s ease-in-out infinite;
+    border-radius: 20px;
+}
+
+.pack-page-card-name-wrap {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    padding: 10px 10px;
+    text-align: center;
+    z-index: 5;
+    background: linear-gradient(to top, rgba(0,0,0,0.5), transparent);
+    border-bottom-left-radius: 20px;
+    border-bottom-right-radius: 20px;
+}
+
+.pack-page-card-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+@keyframes pulse {
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
+}
+
+@media (max-width: 480px) {
+    .pack-page-content        { padding: 0 16px calc(env(safe-area-inset-bottom) + 24px); }
+    .pack-page-card-name      { font-size: 12px; }
+    .pack-page-grid           { gap: 14px; }
+}

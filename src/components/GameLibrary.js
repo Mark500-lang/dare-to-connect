@@ -2,297 +2,269 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { RiMenu2Line } from "react-icons/ri";
-import { IoLockClosed } from "react-icons/io5";
+import { RiMenu2Line } from 'react-icons/ri';
+import { IoLockClosed } from 'react-icons/io5';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Browser } from '@capacitor/browser';
 import subscriptionService from '../services/subscriptionService';
 import versionService from '../services/versionService';
-import { APP_VERSION } from '../config/appConfig';   // ← package.json version
+import { APP_VERSION } from '../config/appConfig';
 import './GameLibrary.css';
 import { useStatusBar } from '../hooks/useStatusBar';
 
+// ── Image cache ───────────────────────────────────────────────────────────────
 const imageCache = new Map();
 
-const preloadImage = (url, gameId) => {
-    return new Promise((resolve, reject) => {
-        if (imageCache.has(url)) {
-            resolve({ url, gameId, fromCache: true });
-            return;
-        }
+const preloadImage = (url, id) =>
+    new Promise((resolve, reject) => {
+        if (!url) { resolve({ url, id, fromCache: false }); return; }
+        // Normalise: trim whitespace/newlines, ensure absolute URL
+        const cleanUrl = normaliseImageUrl(url);
+        if (imageCache.has(cleanUrl)) { resolve({ url: cleanUrl, id, fromCache: true }); return; }
         const img = new Image();
-        img.onload = () => {
-            imageCache.set(url, true);
-            resolve({ url, gameId, fromCache: false });
-        };
-        img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
-        img.src = url;
+        img.onload  = () => { imageCache.set(cleanUrl, true); resolve({ url: cleanUrl, id, fromCache: false }); };
+        img.onerrorlibrary = () => reject(new Error(`Failed to load: ${cleanUrl}`));
+        img.src = cleanUrl;
     });
+
+// Handles relative paths like "storage/packs/..." returned by the backend
+const BASE_URL = 'https://admin.daretoconnectgames.com/';
+const normaliseImageUrl = (url) => {
+    if (!url) return null;
+    const trimmed = url.trim();
+    if (trimmed.startsWith('http')) return trimmed;
+    return BASE_URL + trimmed;
 };
 
+// ── Skeleton ──────────────────────────────────────────────────────────────────
 const SKELETON_COUNT = 6;
-
 const SkeletonGrid = () => (
-    <div className="skeleton-grid">
-        {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
-            <div key={i} className="skeleton-card">
-                <div className="skeleton-pulse" />
+    <div className="gl-skeleton-wrap">
+        {/* Free game skeleton — horizontal */}
+        <div className="gl-free-skeleton">
+            <div className="gl-free-skeleton-image skeleton-pulse" />
+            <div className="gl-free-skeleton-text">
+                <div className="skeleton-pulse gl-skel-line gl-skel-line--title" />
+                <div className="skeleton-pulse gl-skel-line gl-skel-line--sub" />
             </div>
-        ))}
+        </div>
+        {/* Pack skeletons — 2-col grid */}
+        <div className="games-grid" style={{ paddingTop: 0 }}>
+            {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+                <div key={i} className="skeleton-card">
+                    <div className="skeleton-pulse" />
+                </div>
+            ))}
+        </div>
     </div>
 );
 
+// ── Main component ─────────────────────────────────────────────────────────────
 const GameLibrary = () => {
     useStatusBar('dark', '#ffffff');
-    const navigate = useNavigate();
+    const navigate          = useNavigate();
     const { toggleSidebar } = useOutletContext();
-    const { games, refreshGames, loading, isAuthenticated, user } = useAuth();
+    const { games, refreshGames, loading } = useAuth();
 
-    const [refreshing,           setRefreshing]           = useState(false);
-    const [imageStates,          setImageStates]          = useState({});
-    const [imagesReady,          setImagesReady]          = useState(false);  // ← skeleton fix
-    const [pullState,            setPullState]            = useState({
-        isPulling: false, startY: 0, pullDistance: 0, maxPullDistance: 80
+    const [packs,           setPacks]           = useState([]);
+    const [ownedPacks,      setOwnedPacks]      = useState([]);
+    const [packsLoading,    setPacksLoading]    = useState(true);
+    const [refreshing,      setRefreshing]      = useState(false);
+    const [imageStates,     setImageStates]     = useState({});
+    const [imagesReady,     setImagesReady]     = useState(false);
+    const [pullState,       setPullState]       = useState({
+        isPulling: false, startY: 0, pullDistance: 0, maxPullDistance: 80,
     });
-    const [hasSubscription,      setHasSubscription]      = useState(false);
-    const [checkingSubscription, setCheckingSubscription] = useState(true);
-
-    // Version check state
     const [showUpdateModal, setShowUpdateModal] = useState(false);
     const [updateData,      setUpdateData]      = useState(null);
 
-    const containerRef    = useRef(null);
-    const pullStartY      = useRef(0);
-    const preloadPromises = useRef([]);
+    const containerRef = useRef(null);
+    const pullStartY   = useRef(0);
 
-    // ── Version check on mount ────────────────────────────────────────────────
-    // Passes APP_VERSION from package.json on web.
-    // versionService picks up native app version on iOS/Android/Huawei automatically.
+    // ── Version check ─────────────────────────────────────────────────────────
     useEffect(() => {
-        const runVersionCheck = async () => {
-            const result = await versionService.checkVersion(APP_VERSION);
-            console.log('[VersionCheck] result:', result);
-            if (result.needsUpdate) {
-                setUpdateData(result);
-                setShowUpdateModal(true);
-            }
-        };
-        runVersionCheck();
+        versionService.checkVersion(APP_VERSION).then(result => {
+            if (result.needsUpdate) { setUpdateData(result); setShowUpdateModal(true); }
+        });
     }, []);
 
-    // ── Subscription check ────────────────────────────────────────────────────
-    useEffect(() => {
-        checkUserSubscription();
-    }, [user]);
+    // ── Initial load ──────────────────────────────────────────────────────────
+    useEffect(() => { loadAll(); }, []);
 
-    const checkUserSubscription = async () => {
-        if (!isAuthenticated || !user?.id) {
-            setHasSubscription(false);
-            setCheckingSubscription(false);
-            return;
-        }
+    const loadAll = async (forceRefresh = false) => {
         try {
-            setCheckingSubscription(true);
-            const subscription = await subscriptionService.getUserSubscription();
-            let isActive = false;
-            if (subscription) {
-                if (subscription.status === 'Active') {
-                    isActive = true;
-                } else if (subscription.toDate) {
-                    isActive = new Date(subscription.toDate) > new Date();
-                }
+            setPacksLoading(true);
+            const [, packsResult] = await Promise.allSettled([
+                refreshGames(forceRefresh),
+                subscriptionService.getPacks(forceRefresh),
+            ]);
+            if (packsResult.status === 'fulfilled') {
+                setPacks(packsResult.value.packs     ?? []);
+                setOwnedPacks(packsResult.value.ownedPacks ?? []);
             }
-            setHasSubscription(isActive);
-        } catch (error) {
-            console.error('Error checking subscription:', error);
-            setHasSubscription(false);
+        } catch (err) {
+            console.error('loadAll error:', err);
         } finally {
-            setCheckingSubscription(false);
+            setPacksLoading(false);
         }
     };
 
-    // ── Games + image loading ─────────────────────────────────────────────────
+    // ── Image preloading ──────────────────────────────────────────────────────
     useEffect(() => {
-        if (!games || games.length === 0) {
-            loadGames();
-        } else {
-            initializeImageStates();
-            preloadImages();
-        }
-    }, [games]);
+        if ((!games || games.length === 0) && packs.length === 0) return;
+        initImageStates();
+        preloadAll();
+    }, [games, packs]);
 
-    const initializeImageStates = () => {
-        if (!games || games.length === 0) return;
-        const initialStates = {};
-        games.forEach(game => {
-            initialStates[game.id] = {
-                loading: !imageCache.has(game.image1),
-                loaded:  imageCache.has(game.image1),
-                error:   false
+    const initImageStates = () => {
+        const s = {};
+        // Free game (id=1) only
+        const free = (games || []).find(g => g.id === 1);
+        if (free) {
+            const url = normaliseImageUrl(free.image1);
+            s[free.id] = { loaded: imageCache.has(url), error: false };
+        }
+        // Packs
+        packs.forEach(pack => {
+            const url = normaliseImageUrl(pack.image);
+            s[`pack_${pack.id}`] = {
+                loaded: url ? imageCache.has(url) : false,
+                error:  !url,
             };
         });
-        setImageStates(initialStates);
+        setImageStates(s);
     };
 
-    const preloadImages = async () => {
-        if (!games || games.length === 0) return;
-
-        // Reset so skeletons show during every load/refresh cycle
+    const preloadAll = async () => {
         setImagesReady(false);
+        const promises = [];
 
-        preloadPromises.current = games.map(game =>
-            preloadImage(game.image1, game.id)
-                .then(result => {
-                    setImageStates(prev => ({
-                        ...prev,
-                        [result.gameId]: { loading: false, loaded: true, error: false }
-                    }));
-                })
-                .catch(() => {
-                    setImageStates(prev => ({
-                        ...prev,
-                        [game.id]: { loading: false, loaded: false, error: true }
-                    }));
-                })
-        );
+        const free = (games || []).find(g => g.id === 1);
+        if (free?.image1) {
+            promises.push(
+                preloadImage(free.image1, free.id)
+                    .then(r  => setImageStates(p => ({ ...p, [free.id]:       { loaded: true,  error: false } })))
+                    .catch(() => setImageStates(p => ({ ...p, [free.id]:       { loaded: false, error: true  } })))
+            );
+        }
 
-        await Promise.allSettled(preloadPromises.current);
+        packs.forEach(pack => {
+            const key = `pack_${pack.id}`;
+            if (!pack.image) return;
+            promises.push(
+                preloadImage(pack.image, key)
+                    .then(r  => setImageStates(p => ({ ...p, [key]: { loaded: true,  error: false } })))
+                    .catch(() => setImageStates(p => ({ ...p, [key]: { loaded: false, error: true  } })))
+            );
+        });
 
-        // All images resolved (loaded or errored) — now reveal the real grid
+        await Promise.allSettled(promises);
         setImagesReady(true);
-    };
-
-    const loadGames = async (forceRefresh = false) => {
-        try { await refreshGames(forceRefresh); } catch (err) { console.log(err.message); }
-    };
-
-    const handleImageLoad = (gameId) => setImageStates(prev => ({
-        ...prev, [gameId]: { ...prev[gameId], loading: false, loaded: true, error: false }
-    }));
-
-    const handleImageError = (gameId, e) => {
-        e.target.style.display = 'none';
-        setImageStates(prev => ({
-            ...prev, [gameId]: { ...prev[gameId], loading: false, loaded: false, error: true }
-        }));
     };
 
     // ── Pull to refresh ───────────────────────────────────────────────────────
     const handlePullStart = (e) => {
         if (containerRef.current?.scrollTop === 0) {
-            const startY = e.touches ? e.touches[0].pageY : e.clientY;
-            pullStartY.current = startY;
-            setPullState(prev => ({ ...prev, isPulling: true, startY, pullDistance: 0 }));
+            const y = e.touches ? e.touches[0].pageY : e.clientY;
+            pullStartY.current = y;
+            setPullState(p => ({ ...p, isPulling: true, startY: y, pullDistance: 0 }));
         }
     };
-
     const handlePullMove = (e) => {
         if (!pullState.isPulling) return;
-        const currentY     = e.touches ? e.touches[0].pageY : e.clientY;
-        const pullDistance = Math.max(0, currentY - pullStartY.current);
-        setPullState(prev => ({ ...prev, pullDistance: Math.min(pullDistance, prev.maxPullDistance) }));
+        const y = e.touches ? e.touches[0].pageY : e.clientY;
+        const d = Math.max(0, y - pullStartY.current);
+        setPullState(p => ({ ...p, pullDistance: Math.min(d, p.maxPullDistance) }));
     };
-
     const handlePullEnd = useCallback(async () => {
         if (!pullState.isPulling) return;
         if (pullState.pullDistance > 50) {
             setRefreshing(true);
-            setImagesReady(false); // show skeletons during refresh
+            setImagesReady(false);
             try {
-                await refreshGames(true);
-                await checkUserSubscription();
+                subscriptionService.clearPacksCache();
                 imageCache.clear();
-                initializeImageStates();
-                await preloadImages();
-            } catch (err) { console.log(err.message); }
+                await loadAll(true);
+                await preloadAll();
+            } catch (e) { console.log(e.message); }
             finally { setRefreshing(false); }
         }
         setPullState({ isPulling: false, startY: 0, pullDistance: 0, maxPullDistance: 80 });
-    }, [pullState, refreshGames, games]);
+    }, [pullState]);
 
     useEffect(() => {
-        const container = containerRef.current;
-        if (!container) return;
-        const onTouchStart = (e) => handlePullStart(e);
-        const onTouchMove  = (e) => handlePullMove(e);
-        const onTouchEnd   = ()  => handlePullEnd();
-        const onMouseDown  = (e) => handlePullStart(e);
-        const onMouseMove  = (e) => handlePullMove(e);
-        const onMouseUp    = ()  => handlePullEnd();
-        container.addEventListener('touchstart', onTouchStart, { passive: false });
-        container.addEventListener('touchmove',  onTouchMove,  { passive: false });
-        container.addEventListener('touchend',   onTouchEnd);
-        container.addEventListener('mousedown',  onMouseDown);
-        container.addEventListener('mousemove',  onMouseMove);
-        container.addEventListener('mouseup',    onMouseUp);
-        container.addEventListener('mouseleave', onMouseUp);
+        const el = containerRef.current;
+        if (!el) return;
+        const opts = { passive: false };
+        const ts = e => handlePullStart(e);
+        const tm = e => handlePullMove(e);
+        const te = () => handlePullEnd();
+        el.addEventListener('touchstart', ts, opts);
+        el.addEventListener('touchmove',  tm, opts);
+        el.addEventListener('touchend',   te);
+        el.addEventListener('mousedown',  ts);
+        el.addEventListener('mousemove',  tm);
+        el.addEventListener('mouseup',    te);
+        el.addEventListener('mouseleave', te);
         return () => {
-            container.removeEventListener('touchstart', onTouchStart);
-            container.removeEventListener('touchmove',  onTouchMove);
-            container.removeEventListener('touchend',   onTouchEnd);
-            container.removeEventListener('mousedown',  onMouseDown);
-            container.removeEventListener('mousemove',  onMouseMove);
-            container.removeEventListener('mouseup',    onMouseUp);
-            container.removeEventListener('mouseleave', onMouseUp);
+            el.removeEventListener('touchstart', ts);
+            el.removeEventListener('touchmove',  tm);
+            el.removeEventListener('touchend',   te);
+            el.removeEventListener('mousedown',  ts);
+            el.removeEventListener('mousemove',  tm);
+            el.removeEventListener('mouseup',    te);
+            el.removeEventListener('mouseleave', te);
         };
     }, [handlePullEnd]);
 
-    const handleGameClick = async (game) => {
-        if (game.id === 1) { navigate(`/games/${game.id}`); return; }
-        if (!isAuthenticated) { navigate('/register'); return; }
-        if (!hasSubscription) {
-            navigate('/subscriptions', {
-                state: { from: '/library', gameId: game.id, message: 'Subscribe to unlock all premium games!' }
-            });
-            return;
-        }
-        navigate(`/games/${game.id}`);
+    // ── Navigation ────────────────────────────────────────────────────────────
+    const handleFreeGameClick = () => {
+        const free = (games || []).find(g => g.id === 1);
+        if (free) navigate(`/games/${free.id}`);
     };
 
-    // ── Forced update handler — no dismiss, no Later button ──────────────────
-    const handleUpdate = async () => {
-        if (updateData?.url) {
-            try { await Browser.open({ url: updateData.url }); } catch {}
+    const handlePackClick = (pack) => {
+        const owned = subscriptionService.isPackOwned(pack.productId, ownedPacks);
+        if (owned) {
+                // navigate('/subscriptions', { state: { packId: pack.id, productId: pack.productId } });
+
+            navigate(`/pack/${pack.id}`, { state: { pack, ownedPacks } });
+        } else {
+                        // navigate(`/pack/${pack.id}`, { state: { pack, ownedPacks } });
+
+            navigate('/subscriptions', { state: { packId: pack.id, productId: pack.productId } });
         }
-        // Modal stays open on native (force=1) — user must update
-        // On web, close after opening the link since there's no app store to install from
+    };
+
+    const handleUpdate = async () => {
+        if (updateData?.url) { try { await Browser.open({ url: updateData.url }); } catch {} }
         const isNative = window.Capacitor?.isNativePlatform?.() ?? false;
         if (!isNative) setShowUpdateModal(false);
     };
 
-    const backdropVariants = {
-        hidden:  { opacity: 0 },
-        visible: { opacity: 1 },
-        exit:    { opacity: 0 },
-    };
-    const modalVariants = {
-        hidden:  { opacity: 0, y: 50 },
-        visible: { opacity: 1, y: 0 },
-        exit:    { opacity: 0, y: 50 },
-    };
+    // ── Derived ───────────────────────────────────────────────────────────────
+    const freeGame       = (games || []).find(g => g.id === 1);
+    const dataReady      = !loading && !packsLoading;
+    const showContent    = dataReady && imagesReady;
+    const pullProgress   = Math.min(pullState.pullDistance / 50, 1);
+    const spinnerRot     = pullProgress * 360;
 
-    const pullProgress    = Math.min(pullState.pullDistance / 50, 1);
-    const spinnerRotation = pullProgress * 360;
+    const freeImgSrc = freeGame ? normaliseImageUrl(freeGame.image1) : null;
 
-    // ── Render ────────────────────────────────────────────────────────────────
-    // showContent is true only when games are loaded AND all images have resolved.
-    // Until then, SkeletonGrid is shown — no flash, no blank screen.
-    const showContent = !loading && games && games.length > 0 && imagesReady;
+    const backdropV = { hidden: { opacity: 0 }, visible: { opacity: 1 }, exit: { opacity: 0 } };
+    const modalV    = { hidden: { opacity: 0, y: 50 }, visible: { opacity: 1, y: 0 }, exit: { opacity: 0, y: 50 } };
 
     return (
         <>
             <div className="library-container" ref={containerRef}>
 
-                {/* Pull to refresh indicator */}
-                <div
-                    className="pull-to-refresh-indicator"
-                    style={{
-                        opacity:   pullState.pullDistance > 0 ? 1 : 0,
-                        transform: `translateY(${Math.min(pullState.pullDistance, 60) - 60}px)`
-                    }}
-                >
+                {/* Pull indicator */}
+                <div className="pull-to-refresh-indicator" style={{
+                    opacity:   pullState.pullDistance > 0 ? 1 : 0,
+                    transform: `translateY(${Math.min(pullState.pullDistance, 60) - 60}px)`,
+                }}>
                     <div className="pull-indicator-content">
-                        <div className="refresh-spinner" style={{ transform: `rotate(${spinnerRotation}deg)` }}>
+                        <div className="refresh-spinner" style={{ transform: `rotate(${spinnerRot}deg)` }}>
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                                 <circle cx="12" cy="12" r="10" stroke="#1674a2" strokeWidth="2"
                                     strokeDasharray="60" strokeDashoffset="60" strokeLinecap="round"/>
@@ -301,7 +273,7 @@ const GameLibrary = () => {
                     </div>
                 </div>
 
-                {/* Header — always visible immediately */}
+                {/* Header */}
                 <header className="library-header">
                     <button className="sidebar-toggle" onClick={toggleSidebar} aria-label="Open menu">
                         <span className="toggle-icon"><RiMenu2Line /></span>
@@ -309,66 +281,107 @@ const GameLibrary = () => {
                     <h1 className="library-title">Choose a Game</h1>
                 </header>
 
-                {/* Skeletons until games AND images are fully ready */}
-                {!showContent ? (
-                    <SkeletonGrid />
-                ) : (
+                {!showContent ? <SkeletonGrid /> : (
                     <div className="scroll-content">
-                        <div className="games-grid">
-                            {games.map((game) => {
-                                const imageState   = imageStates[game.id] || { loading: false, loaded: false, error: false };
-                                const showSkeleton = !imageState.loaded && !imageState.error;
-                                // const isLocked     = game.id !== 1 && !hasSubscription && !checkingSubscription;
-//  ${isLocked ? 'locked' : ''}
-                                return (
-                                    <div
-                                        key={game.id}
-                                        className={`game-card `}
-                                        onClick={() => handleGameClick(game)}
-                                    >
-                                        {/* {isLocked && (
-                                            <div className="game-lock-overlay">
-                                                <IoLockClosed className="lock-icon" />
+
+                        {/* ── Section 1: Free game — horizontal card ── */}
+                        {freeGame && (
+                            <div className="free-section">
+                                {/* <p className="section-label">Try the app</p> */}
+                                <div className="free-card">
+
+                                    {/* Left: square image */}
+                                    <div className="free-card-image-wrap" onClick={handleFreeGameClick}>
+                                        {imageStates[freeGame.id]?.error || !freeImgSrc ? (
+                                            <div className="free-card-fallback" style={{ backgroundColor: freeGame.color || '#000' }}>
+                                                {freeGame.gameName?.charAt(0)}
                                             </div>
-                                        )} */}
-
-                                        <div className="game-card-image-container">
-                                            {!imageState.error && (
-                                                <img
-                                                    src={game.image1}
-                                                    alt={game.gameName}
-                                                    className={`game-card-image ${imageState.loaded ? 'loaded' : ''}`}
-                                                    loading="lazy"
-                                                    onLoad={() => handleImageLoad(game.id)}
-                                                    onError={(e) => handleImageError(game.id, e)}
-                                                    style={{ display: imageState.loaded ? 'block' : 'none' }}
-                                                />
-                                            )}
-                                            {imageState.error && (
-                                                <div
-                                                    className="game-fallback"
-                                                    style={{ backgroundColor: game?.color || '#1674a2' }}
-                                                >
-                                                    {game?.gameName?.charAt(0).toUpperCase() || '?'}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="game-name-container">
-                                            {game.id === 1 && <span className="game-name">{game.gameName}</span>}
-                                        </div>
-
-                                        {/* Per-card skeleton shown while that card's image loads */}
-                                        <div className="skeleton-container">
-                                            {showSkeleton && <div className="game-card-skeleton" />}
-                                        </div>
+                                        ) : (
+                                            <img
+                                                src={freeImgSrc}
+                                                alt={freeGame.gameName}
+                                                className={`free-card-image ${imageStates[freeGame.id]?.loaded ? 'loaded' : ''}`}
+                                            />
+                                        )}
                                     </div>
-                                );
-                            })}
-                        </div>
+
+                                    {/* Right: text + CTA */}
+                                    <div className="free-card-body">
+                                        {/* <span className="free-badge">FREE</span> */}
+                                        <h2 className="free-card-title">{freeGame.gameName}</h2>
+                                        <p className="free-card-sub">No account needed. Start playing now.</p>
+                                        {/* <div className="free-card-cta">Play Now →</div> */}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ── Section 2: Game packs ── */}
+                        {packs.length > 0 && (
+                            <div className="packs-section">
+                                <p className="section-label">Game Packs</p>
+                                <div className="games-grid">
+                                    {packs.map(pack => {
+                                        const key       = `pack_${pack.id}`;
+                                        const imgState  = imageStates[key] ?? { loaded: false, error: false };
+                                        const imgSrc    = normaliseImageUrl(pack.image);
+                                        const isOwned   = subscriptionService.isPackOwned(pack.productId, ownedPacks);
+                                        const isBundle  = pack.productId === 'com.daretoconnect.pack.bundle';
+
+                                        return (
+                                            <div
+                                                key={pack.id}
+                                                className={`game-card ${isOwned ? '' : 'locked'}`}
+                                                onClick={() => handlePackClick(pack)}
+                                            >
+                                                {/* Lock */}
+                                                {!isOwned && (
+                                                    <div className="game-lock-overlay">
+                                                        <IoLockClosed className="lock-icon" />
+                                                    </div>
+                                                )}
+
+                                                {/* Best value badge */}
+                                                {isBundle && (
+                                                    <div className="best-value-badge">BEST VALUE</div>
+                                                )}
+
+                                                {/* Image */}
+                                                <div className="game-card-image-container">
+                                                    {imgSrc && !imgState.error ? (
+                                                        <img
+                                                            src={imgSrc}
+                                                            alt={pack.packName}
+                                                            className={`game-card-image ${imgState.loaded ? 'loaded' : ''}`}
+                                                        />
+                                                    ) : (
+                                                        <div className="game-fallback" style={{ backgroundColor: pack.color || '#1674a2' }}>
+                                                            {pack.packName?.charAt(0)}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Per-card skeleton while image loads */}
+                                                    {!imgState.loaded && !imgState.error && imgSrc && (
+                                                        <div className="skeleton-container">
+                                                            <div className="game-card-skeleton" />
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Name + owned */}
+                                                <div className="game-name-container">
+                                                    { !isOwned && <span className="game-name">{pack.packName}</span> }
+                                                    {isOwned && <span className="owned-badge">OWNED ✓</span>}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
 
                         <div className="promo-footer">
-                            <a className="site-link" target="blank" rel="noopener noreferrer"
+                            <a className="footer-promo-link" target="_blank" rel="noopener noreferrer"
                                 href="https://daretoconnectgames.com/">
                                 www.daretoconnectgames.com
                             </a>
@@ -377,40 +390,25 @@ const GameLibrary = () => {
                 )}
 
                 {refreshing && (
-                    <div className="refreshing-overlay">
-                        <div className="spinner" />
-                    </div>
+                    <div className="refreshing-overlay"><div className="spinner" /></div>
                 )}
             </div>
 
-            {/* ── Forced Update Modal — no dismiss, no Later button ─────────── */}
+            {/* Update modal */}
             <AnimatePresence>
                 {showUpdateModal && (
-                    <motion.div
-                        className="modal-backdrop"
-                        variants={backdropVariants}
-                        initial="hidden" animate="visible" exit="exit"
-                        // Backdrop click does nothing — update is mandatory
-                    >
-                        <motion.div
-                            className="modal-dialog modal-dialog-centered"
-                            role="document"
-                            variants={modalVariants}
-                            initial="hidden" animate="visible" exit="exit"
-                            onClick={(e) => e.stopPropagation()}
-                        >
+                    <motion.div className="modal-backdrop" variants={backdropV}
+                        initial="hidden" animate="visible" exit="exit">
+                        <motion.div className="modal-dialog modal-dialog-centered" role="document"
+                            variants={modalV} initial="hidden" animate="visible" exit="exit"
+                            onClick={e => e.stopPropagation()}>
                             <div className="version-popup-content">
                                 <div className="popup-modal-body">
-                                    {/* No cancel/close button — update is forced */}
                                     <h5 className="version-popup-title">{updateData?.title}</h5>
                                     <p  className="version-popup-message">{updateData?.message}</p>
                                     <div className="version-popup-btns">
-                                        <motion.div
-                                            className="version-popup-btn-yes"
-                                            onClick={handleUpdate}
-                                            whileHover={{ scale: 1.05 }}
-                                            whileTap={{ scale: 0.95 }}
-                                        >
+                                        <motion.div className="version-popup-btn-yes"
+                                            onClick={handleUpdate} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                                             <p>Update Now</p>
                                         </motion.div>
                                     </div>

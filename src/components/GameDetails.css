@@ -150,7 +150,6 @@
     bottom: 0;
     left: 0;
     right: 0;
-    background: white;
     padding: 0 0 20px;
     text-align: center;
 }
@@ -179,7 +178,7 @@
 
 @media (max-width: 480px) {
     .game-details-header {
-        padding: 15px;
+        padding: 10px 15px;
     }
     .back-button {
         padding: 6px;

@@ -7,10 +7,10 @@ android {
         applicationId "daretoconnect.app.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        // versionCode 11
-        // versionName "2.8"
-        versionCode 6
-        versionName "1.6.7"
+        versionCode 12
+        versionName "2.9"
+        // versionCode 6
+        // versionName "1.6.7"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'

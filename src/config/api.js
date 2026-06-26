@@ -7,6 +7,7 @@ export const API_CONFIG = {
         REGISTER: '/register',
         EDIT_PIC: '/editPic',
         GET_GAMES: '/getGames',
+        GET_PACKS: '/getPacks',     
         GET_QUESTIONS: '/getQuestions',
         GET_PROFILE: '/getProfile',
         GET_SUBSCRIPTION: '/getSubscription',

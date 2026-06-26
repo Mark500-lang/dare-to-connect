@@ -331,13 +331,6 @@ const GameCard = () => {
                         </button>
                     </div>
                 </div>
-
-                {/* Footer */}
-                <div className='promo-footer'>
-                    <a className='footer-promo-link' target='_blank' rel='noopener noreferrer' href='https://daretoconnectgames.com/'>
-                        www.daretoconnectgames.com
-                    </a>
-                </div>
             </>
         );
     };
@@ -357,6 +350,13 @@ const GameCard = () => {
             
             <div className='game-card-content'>
                 {renderContent()}
+            </div>
+
+            {/* Footer */}
+            <div className='game-details-footer'>
+                <a className='footer-promo-link' target='_blank' rel='noopener noreferrer' href='https://daretoconnectgames.com/'>
+                    www.daretoconnectgames.com
+                </a>
             </div>
         </div>
     );

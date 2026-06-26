@@ -4,32 +4,37 @@ import { Purchases } from '@revenuecat/purchases-capacitor';
 import { Capacitor } from '@capacitor/core';
 import { debugLog } from '../components/DebugLogger';
 
-const RC_PACKAGE_MAP = {
-    1: '$rc_weekly',
-    2: '$rc_monthly',
-    3: '$rc_annual',
-    4: '$rc_annual',
+// ── RC package identifier → our productId ────────────────────────────────────
+// These must match the Package Identifiers you created in RC Offerings exactly.
+const RC_PACKAGE_TO_PRODUCT = {
+    'pack_social':   'com.daretoconnect.pack.social',
+    'pack_couples':  'com.daretoconnect.pack.couples',
+    'pack_wellness': 'com.daretoconnect.pack.wellness',
+    'pack_career':   'com.daretoconnect.pack.career',
+    'pack_bundle':   'com.daretoconnect.pack.bundle',
 };
 
-const PRODUCT_ID_MAP = {
-    1: 'com.daretoconnect.bronze',
-    2: 'com.daretoconnect.silver',
-    3: 'com.daretoconnect.gold',
-    4: 'com.daretoconnect.gold',
-};
-
-// ── Sara Stories pattern: single entitlement ID ──────────────────────────────
-// Check your RevenueCat dashboard for the exact entitlement identifier
-const ENTITLEMENT_ID = 'Dare to Connect Premium';
+// ── Bundle expands to all pack entitlements ───────────────────────────────────
+const BUNDLE_PRODUCT_ID = 'com.daretoconnect.pack.bundle';
+const ALL_PACK_PRODUCT_IDS = [
+    'com.daretoconnect.pack.social',
+    'com.daretoconnect.pack.couples',
+    'com.daretoconnect.pack.wellness',
+    'com.daretoconnect.pack.career',
+    'com.daretoconnect.pack.bundle',
+];
 
 class SubscriptionService {
     constructor() {
-        this.cacheKey              = 'subscription_packages';
-        this.cacheTimestamp        = 'subscription_packages_timestamp';
+        this.packsCache            = 'packs_data';          // { packs, timestamp }
+        this.ownedPacksCache       = 'owned_packs';         // string[]
         this.revenueCatInitialized = false;
         this.platform              = null;
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // PLATFORM HELPERS
+    // ─────────────────────────────────────────────────────────────────────────
     getPlatform() { return Capacitor.getPlatform(); }
     isNative()    { return Capacitor.isNativePlatform(); }
 
@@ -41,45 +46,54 @@ class SubscriptionService {
     }
 
     // ── Force any RC result into a plain JS object ────────────────────────────
-    // This is the fix for "o is not a function" — Android Capacitor bridge
-    // returns Java proxy objects. JSON round-trip converts them to plain JS.
+    // Android Capacitor bridge returns Java proxy objects.
+    // JSON round-trip converts them to plain JS — essential for entitlement reads.
     _plain(obj) {
         try   { return JSON.parse(JSON.stringify(obj ?? {})); }
         catch { return {}; }
     }
 
-    // ── Sara Stories pattern: check entitlement by ID ─────────────────────────
-    _hasPremium(customerInfo) {
+    // ─────────────────────────────────────────────────────────────────────────
+    // ENTITLEMENT HELPERS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Returns array of owned productId strings from RC customerInfo.
+     * If bundle is owned, all pack productIds are included.
+     */
+    getOwnedPacks(customerInfo) {
         try {
             const plain  = this._plain(customerInfo);
             const active = plain?.entitlements?.active ?? {};
-            debugLog('info', '[RC] Active entitlement keys:', Object.keys(active));
+            const keys   = Object.keys(active); // e.g. ['com.daretoconnect.pack.social']
 
-            // Check named entitlement first (Sara Stories primary check)
-            if (active[ENTITLEMENT_ID]) return true;
+            debugLog('info', '[RC] Active entitlement keys:', keys);
 
-            // Fallback: any active entitlement at all (Sara Stories fallback)
-            return Object.keys(active).length > 0;
+            if (keys.length === 0) return [];
+
+            // If bundle is owned, expand to all packs
+            if (keys.includes(BUNDLE_PRODUCT_ID)) {
+                return [...ALL_PACK_PRODUCT_IDS];
+            }
+
+            return keys;
         } catch (e) {
-            debugLog('warn', '[RC] _hasPremium error (non-fatal):', e.message);
-            return false;
+            debugLog('warn', '[RC] getOwnedPacks error:', e.message);
+            return [];
         }
     }
 
-    _getFirstEntitlement(customerInfo) {
-        try {
-            const plain  = this._plain(customerInfo);
-            const active = plain?.entitlements?.active ?? {};
-            const values = Object.values(active);
-            return values.length > 0 ? values[0] : null;
-        } catch (e) {
-            debugLog('warn', '[RC] _getFirstEntitlement (non-fatal):', e.message);
-            return null;
-        }
+    /**
+     * Returns true if a specific pack productId is owned.
+     * Bundle ownership counts as owning everything.
+     */
+    isPackOwned(productId, ownedPacks) {
+        if (!Array.isArray(ownedPacks)) return false;
+        return ownedPacks.includes(productId) || ownedPacks.includes(BUNDLE_PRODUCT_ID);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // INIT
+    // REVENUECAT INIT
     // ─────────────────────────────────────────────────────────────────────────
     async initializeRevenueCat() {
         if (this.revenueCatInitialized) return true;
@@ -91,8 +105,8 @@ class SubscriptionService {
         }
 
         try {
-            this.platform  = this.getPlatform();
-            const apiKey   = this.getRevenueCatApiKey();
+            this.platform = this.getPlatform();
+            const apiKey  = this.getRevenueCatApiKey();
 
             if (!apiKey) {
                 debugLog('error', '[RC] No API key for platform:', this.platform);
@@ -106,18 +120,15 @@ class SubscriptionService {
             await Purchases.configure({ apiKey });
             debugLog('info', '[RC] Configured for platform:', this.platform);
 
-            // ── Sara Stories pattern exactly ──────────────────────────────
-            // Log in with user account ID so entitlements are tied to the
-            // same account across reinstalls — same as Sara Stories logIn call
+            // Tie entitlements to the user's account so they persist across reinstalls
             const currentUser = authService.getUser();
             if (currentUser?.id) {
                 await Purchases.logIn({ appUserID: String(currentUser.id) });
                 debugLog('info', '[RC] Logged in as user ID:', currentUser.id);
             } else {
-                debugLog('warn', '[RC] No user found — RC using anonymous ID');
+                debugLog('warn', '[RC] No user — RC using anonymous ID');
             }
 
-            // Load offerings and log them
             await this._logOfferings();
 
             this.revenueCatInitialized = true;
@@ -126,7 +137,7 @@ class SubscriptionService {
 
         } catch (error) {
             debugLog('error', '[RC] Init failed:', error.message);
-            this.revenueCatInitialized = true;
+            this.revenueCatInitialized = true; // prevent infinite retry
             return false;
         }
     }
@@ -134,10 +145,7 @@ class SubscriptionService {
     async _logOfferings() {
         try {
             const { current } = await Purchases.getOfferings();
-            if (!current) {
-                debugLog('warn', '[RC] No current offering returned');
-                return;
-            }
+            if (!current) { debugLog('warn', '[RC] No current offering'); return; }
             const packages = Object.values(current.availablePackages);
             debugLog('info', '[RC] Offerings loaded:', packages.map(p => ({
                 rcId:      p.identifier,
@@ -151,115 +159,157 @@ class SubscriptionService {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // PACKAGES
+    // GET PACKS — backend packs + owned status in one call
     // ─────────────────────────────────────────────────────────────────────────
-    async getPaymentPackages(forceRefresh = false) {
-        const cached = cacheService.getItem(this.cacheKey);
-        const ts     = cacheService.getItem(this.cacheTimestamp);
-        const age    = ts ? Date.now() - ts : Infinity;
-        const valid  = age < API_CONFIG.CACHE_DURATION.GAMES;
 
-        if (!forceRefresh && cached?.length > 0 && valid) return cached;
+    /**
+     * Fetches packs from backend (/getPacks) and merges with RC ownership.
+     * Returns { packs: Pack[], ownedPacks: string[] }
+     *
+     * Cache strategy:
+     *   - Pack list cached for 5 minutes (same as games)
+     *   - ownedPacks cached for 5 minutes, cleared immediately after any purchase
+     *   - forceRefresh = true bypasses both caches
+     */
+    async getPacks(forceRefresh = false) {
+        const CACHE_KEY = this.packsCache;
+        const CACHE_TTL = API_CONFIG.CACHE_DURATION.GAMES; // 5 min
+
+        if (!forceRefresh) {
+            const cached = cacheService.getItem(CACHE_KEY);
+            if (cached) {
+                debugLog('info', '[Packs] Returning cached packs');
+                return cached;
+            }
+        }
 
         try {
             const accessToken = authService.getAccessToken();
-            const response    = await fetch(`${API_CONFIG.BASE_URL}/getPaymentPackages`, {
+            const response    = await fetch(`${API_CONFIG.BASE_URL}/getPacks`, {
                 method:  'POST',
                 headers: API_CONFIG.HEADERS,
                 body:    JSON.stringify(buildRequestBody({ accessToken })),
             });
 
             const data = JSON.parse(await response.text());
-            if (data.status?.toLowerCase() !== 'ok') throw new Error(data.message || 'Failed to fetch packages');
+            if (data.status?.toLowerCase() !== 'ok') {
+                throw new Error(data.message || 'Failed to fetch packs');
+            }
 
-            const result = Array.isArray(data.result) ? data.result : [];
-            cacheService.setItem(this.cacheKey, result, API_CONFIG.CACHE_DURATION.GAMES);
-            cacheService.setItem(this.cacheTimestamp, Date.now());
+            const packs         = data.result?.packs         ?? [];
+            // Backend returns owned packs for logged-in users
+            const backendOwned  = data.result?.ownedProducts ?? [];
+
+            // Also check RC directly on native for the authoritative source
+            let rcOwned = [];
+            if (this.isNative()) {
+                const customerInfo = await this.getCustomerInfo();
+                rcOwned = this.getOwnedPacks(customerInfo);
+                debugLog('info', '[Packs] RC owned packs:', rcOwned);
+            }
+
+            // Merge: union of backend + RC (belt and braces)
+            const ownedPacks = [...new Set([...backendOwned, ...rcOwned])];
+
+            // Expand bundle if present
+            const finalOwned = ownedPacks.includes(BUNDLE_PRODUCT_ID)
+                ? [...ALL_PACK_PRODUCT_IDS]
+                : ownedPacks;
+
+            const result = { packs, ownedPacks: finalOwned };
+            cacheService.setItem(CACHE_KEY, result, CACHE_TTL);
+
+            debugLog('info', '[Packs] Loaded', packs.length, 'packs. Owned:', finalOwned);
             return result;
 
         } catch (error) {
-            debugLog('error', '[RC] getPaymentPackages:', error.message);
-            if (cached?.length > 0) return cached;
+            debugLog('error', '[Packs] getPacks failed:', error.message);
+            // Return stale cache rather than blank screen
+            const stale = cacheService.getItem(CACHE_KEY);
+            if (stale) return stale;
             throw error;
         }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // PURCHASE  —  Sara Stories pattern
+    // PURCHASE FLOW
     // ─────────────────────────────────────────────────────────────────────────
-    async purchasePackage(packageId) {
+
+    /**
+     * Purchase a pack by its productId string (e.g. 'com.daretoconnect.pack.social').
+     *
+     * Flow:
+     *   1. Init RC
+     *   2. Find the matching RC package in the current offering
+     *   3. Create a backend payment reference
+     *   4. Trigger the native purchase sheet
+     *   5. Record the purchase in the backend
+     *   6. Clear pack cache so the library refreshes ownership
+     *   7. Return { success, productId, ownedPacks }
+     */
+    async purchasePackage(productId) {
         if (!this.isNative()) {
             throw new Error('In-app purchases are only available on iOS and Android.');
         }
 
-        debugLog('info', '[RC] Starting purchase for packageId:', packageId);
+        debugLog('info', '[RC] Starting purchase for productId:', productId);
 
         const ready = await this.initializeRevenueCat();
         if (!ready) throw new Error('Payment system could not be initialised.');
 
-        // ── 1. Fetch offerings ────────────────────────────────────────────
+        // 1. Fetch offerings
         const { current } = await Purchases.getOfferings();
-        if (!current) throw new Error('No subscription offerings available.');
+        if (!current) throw new Error('No offerings available. Please check your connection.');
 
         const allPackages = Object.values(current.availablePackages);
-        debugLog('info', '[RC] Packages available:', allPackages.map(p => ({
+        debugLog('info', '[RC] Available packages:', allPackages.map(p => ({
             rcId:      p.identifier,
             productId: p.product?.productIdentifier,
             price:     p.product?.priceString,
         })));
 
-        // ── 2. Match package ──────────────────────────────────────────────
-        let packageToPurchase =
-            allPackages.find(p => p.identifier === RC_PACKAGE_MAP[packageId]) ||
-            allPackages.find(p => p.product?.productIdentifier === PRODUCT_ID_MAP[packageId]) ||
-            allPackages[0];
+        // 2. Find the RC package matching this productId
+        // Match by productIdentifier first (most reliable), then by RC package identifier
+        const packageToPurchase =
+            allPackages.find(p => p.product?.productIdentifier === productId) ||
+            allPackages.find(p => RC_PACKAGE_TO_PRODUCT[p.identifier] === productId);
 
-        if (!packageToPurchase) throw new Error('No products available for purchase.');
+        if (!packageToPurchase) {
+            throw new Error(`Pack not available for purchase: ${productId}`);
+        }
 
-        debugLog('info', '[RC] Selected package:', {
+        debugLog('info', '[RC] Purchasing:', {
             rcId:      packageToPurchase.identifier,
             productId: packageToPurchase.product?.productIdentifier,
             price:     packageToPurchase.product?.priceString,
         });
 
-        // ── 3. Create backend payment reference ───────────────────────────
-        const paymentRefData = await this.initiatePayment(packageId);
+        // 3. Create backend payment reference
+        // We pass packId = the numeric id from the packs table.
+        // The backend recordSubscription resolves the productId from it.
+        const paymentRefData = await this.initiatePayment(productId);
         if (!paymentRefData?.ref_no) throw new Error('Failed to generate payment reference.');
-        debugLog('info', '[RC] Payment ref created:', paymentRefData.ref_no);
+        debugLog('info', '[RC] Payment ref:', paymentRefData.ref_no);
 
-        // ── 4. Trigger native purchase sheet ─────────────────────────────
+        // 4. Native purchase sheet
         let customerInfo;
-
         try {
             debugLog('info', '[RC] Calling Purchases.purchasePackage...');
             const rawResult = await Purchases.purchasePackage({ aPackage: packageToPurchase });
 
-            // Log the EXACT raw shape — this tells us everything
-            debugLog('info', '[RC] Raw result:', this._plain(rawResult));
-
-            // Sara Stories pattern: destructure customerInfo directly
-            // _plain() forces Android proxy → plain JS object
             const plain  = this._plain(rawResult);
             customerInfo = plain.customerInfo ?? plain;
-
-            debugLog('info', '[RC] customerInfo:', customerInfo);
+            debugLog('info', '[RC] customerInfo after purchase:', customerInfo);
 
         } catch (purchaseError) {
             const msg  = (purchaseError.message || '').toLowerCase();
             const code = purchaseError.code;
 
-            debugLog('warn', '[RC] purchasePackage threw:', {
-                message: purchaseError.message,
-                code,
-                userCancelled: msg.includes('cancelled') || msg.includes('canceled') || code === '1' || code === 1
-            });
-
             if (msg.includes('cancelled') || msg.includes('canceled') || code === '1' || code === 1) {
-                throw new Error('Purchase was cancelled');
+                throw new Error('Purchase was cancelled.');
             }
 
-            // Android: already owned → fetch customerInfo and treat as success
-            // Sara Stories handles this exact case
+            // Android: "already owned" → treat as success, fetch current state
             if (msg.includes('already owned') || msg.includes('already purchased')) {
                 debugLog('info', '[RC] Already owned — fetching customerInfo.');
                 const raw = await Purchases.getCustomerInfo();
@@ -269,34 +319,37 @@ class SubscriptionService {
             }
         }
 
-        // ── 5. Sara Stories entitlement check ────────────────────────────
-        const hasPremium = this._hasPremium(customerInfo);
-        debugLog(hasPremium ? 'success' : 'warn',
-            '[RC] hasPremium:', hasPremium,
-            '| Entitlements:', this._plain(customerInfo?.entitlements?.active)
-        );
+        // 5. Record in backend
+        const ownedPacks = this.getOwnedPacks(customerInfo);
+        await this.recordSubscription(productId, paymentRefData.ref_no, customerInfo);
 
-        if (!hasPremium) {
-            // Sara Stories: log warning but still proceed
-            // RC can have propagation delay on first purchase
-            debugLog('warn', '[RC] No active entitlement yet — may be propagation delay. Proceeding with record.');
-        }
+        // 6. Clear pack cache so library reloads with new ownership
+        this.clearPacksCache();
 
-        // ── 6. Record in backend ──────────────────────────────────────────
-        await this.recordSubscription(packageId, paymentRefData.ref_no, customerInfo);
-
-        debugLog('success', '[RC] Purchase flow complete for packageId:', packageId);
-        return { success: true, paymentRef: paymentRefData.ref_no, packageId, customerInfo };
+        debugLog('success', '[RC] Purchase complete. Owned packs:', ownedPacks);
+        return { success: true, productId, ownedPacks };
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // INITIATE PAYMENT
+    // INITIATE PAYMENT  (creates a ref_no in the backend payments table)
     // ─────────────────────────────────────────────────────────────────────────
-    async initiatePayment(packageId) {
+    async initiatePayment(productId) {
         const accessToken = authService.getAccessToken();
-        if (!accessToken) throw new Error('Not logged in.');
+        if (!accessToken) throw new Error('You must be logged in to make a purchase.');
 
-        debugLog('info', '[RC] initiatePayment for packageId:', packageId);
+        // Map productId → numeric pack id for the backend
+        // The backend's initiatePayment still expects a numeric packageId
+        const packIdMap = {
+            'com.daretoconnect.pack.social':   1,
+            'com.daretoconnect.pack.couples':  2,
+            'com.daretoconnect.pack.wellness': 3,
+            'com.daretoconnect.pack.career':   4,
+            'com.daretoconnect.pack.bundle':   5,
+        };
+        const packageId = packIdMap[productId];
+        if (!packageId) throw new Error(`Unknown productId: ${productId}`);
+
+        debugLog('info', '[RC] initiatePayment — productId:', productId, 'packageId:', packageId);
 
         const response = await fetch(`${API_CONFIG.BASE_URL}/initiatePayment`, {
             method:  'POST',
@@ -304,7 +357,7 @@ class SubscriptionService {
             body:    JSON.stringify({
                 hashedKey:  API_CONFIG.API_KEY,
                 accessToken,
-                packageId:  parseInt(packageId, 10),
+                packageId,
             }),
         });
 
@@ -313,9 +366,11 @@ class SubscriptionService {
 
         let data;
         try   { data = JSON.parse(text); }
-        catch { throw new Error('Invalid server response from initiatePayment.'); }
+        catch { throw new Error('Invalid response from server.'); }
 
-        if (data.status?.toLowerCase() !== 'ok') throw new Error(data.message || 'Payment initiation failed.');
+        if (data.status?.toLowerCase() !== 'ok') {
+            throw new Error(data.message || 'Payment initiation failed.');
+        }
 
         const result = data.result;
         if (result?.ref_no)             return result;
@@ -326,31 +381,37 @@ class SubscriptionService {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // RECORD SUBSCRIPTION
+    // RECORD SUBSCRIPTION  (tells backend the purchase is confirmed)
     // ─────────────────────────────────────────────────────────────────────────
-    async recordSubscription(packageId, refNo, customerInfo) {
+    async recordSubscription(productId, refNo, customerInfo) {
         try {
-            const accessToken   = authService.getAccessToken();
-            const entitlement   = this._getFirstEntitlement(customerInfo);
-            const expirationDate    = entitlement?.expirationDate ?? entitlement?.expiration_date ?? null;
-            const productIdentifier = entitlement?.productIdentifier ?? entitlement?.product_identifier ?? '';
+            const accessToken = authService.getAccessToken();
 
-            debugLog('info', '[RC] recordSubscription payload:', {
-                packageId, refNo, productIdentifier, expirationDate
-            });
+            const packIdMap = {
+                'com.daretoconnect.pack.social':   1,
+                'com.daretoconnect.pack.couples':  2,
+                'com.daretoconnect.pack.wellness': 3,
+                'com.daretoconnect.pack.career':   4,
+                'com.daretoconnect.pack.bundle':   5,
+            };
+            const packageId = packIdMap[productId] ?? 1;
+
+            // Non-consumable: no expiry date → backend stores toDate as NULL = permanent
+            const payload = {
+                hashedKey:  API_CONFIG.API_KEY,
+                accessToken,
+                packageId,
+                productId,   // backend uses this to set the productId column
+                refNo,
+                expiryDate:  null,  // explicitly null = non-consumable, never expires
+            };
+
+            debugLog('info', '[RC] recordSubscription payload:', payload);
 
             const response = await fetch(`${API_CONFIG.BASE_URL}/recordSubscription`, {
                 method:  'POST',
                 headers: API_CONFIG.HEADERS,
-                body:    JSON.stringify({
-                    hashedKey:             API_CONFIG.API_KEY,
-                    accessToken,
-                    packageId:             parseInt(packageId, 10),
-                    refNo,
-                    transactionId:         productIdentifier,
-                    originalTransactionId: productIdentifier,
-                    expiryDate:            expirationDate,
-                }),
+                body:    JSON.stringify(payload),
             });
 
             const text = await response.text();
@@ -363,51 +424,20 @@ class SubscriptionService {
             if (data.status?.toLowerCase() !== 'ok') {
                 debugLog('error', '[RC] recordSubscription backend error:', data.message);
             } else {
-                debugLog('success', '[RC] Subscription recorded in backend successfully');
+                debugLog('success', '[RC] Subscription recorded. Owned:', data.result);
             }
 
             return data;
 
         } catch (error) {
-            // Non-fatal — purchase already succeeded at RC level
+            // Non-fatal — purchase already confirmed at RC level
             debugLog('error', '[RC] recordSubscription failed (non-fatal):', error.message);
             return null;
         }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // GET USER SUBSCRIPTION
-    // ─────────────────────────────────────────────────────────────────────────
-    async getUserSubscription() {
-        try {
-            const accessToken = authService.getAccessToken();
-            if (!accessToken) return null;
-
-            const response = await fetch(
-                `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.GET_SUBSCRIPTION}`,
-                {
-                    method:  'POST',
-                    headers: API_CONFIG.HEADERS,
-                    body:    JSON.stringify(buildRequestBody({ accessToken })),
-                }
-            );
-
-            const data = JSON.parse(await response.text());
-            if (data.status?.toLowerCase() !== 'ok') return null;
-
-            const result = data.result;
-            if (result?.subscription)                              return result.subscription;
-            if (result?.packageId !== undefined || result?.status) return result;
-            return null;
-
-        } catch (error) {
-            debugLog('error', '[RC] getUserSubscription:', error.message);
-            return null;
-        }
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // RESTORE  —  Sara Stories pattern exactly
+    // RESTORE PURCHASES
     // ─────────────────────────────────────────────────────────────────────────
     async restorePurchases() {
         if (!this.isNative()) throw new Error('Restore is only available on iOS and Android.');
@@ -417,23 +447,34 @@ class SubscriptionService {
         const ready = await this.initializeRevenueCat();
         if (!ready) throw new Error('Payment system could not be initialised.');
 
-        const rawResult  = await Purchases.restorePurchases();
-        debugLog('info', '[RC] Raw restore result:', this._plain(rawResult));
-
+        const rawResult    = await Purchases.restorePurchases();
         const customerInfo = this._plain(rawResult?.customerInfo ?? rawResult);
-        const hasPremium   = this._hasPremium(customerInfo);
+        const ownedPacks   = this.getOwnedPacks(customerInfo);
 
-        debugLog(hasPremium ? 'success' : 'warn', '[RC] Restore hasPremium:', hasPremium);
+        debugLog('info', '[RC] Restore result — owned packs:', ownedPacks);
 
-        if (hasPremium) {
-            return { success: true, message: 'Purchases restored successfully! Your subscription is now active.' };
+        if (ownedPacks.length > 0) {
+            // Re-record all restored packs in the backend
+            for (const productId of ownedPacks) {
+                const refNo = `restore_${productId}_${Date.now()}`;
+                await this.recordSubscription(productId, refNo, customerInfo);
+            }
+
+            // Clear cache so library reflects restored state
+            this.clearPacksCache();
+
+            return {
+                success:    true,
+                ownedPacks,
+                message:    `${ownedPacks.length} pack${ownedPacks.length > 1 ? 's' : ''} restored successfully!`,
+            };
         }
 
-        return { success: false, message: 'No active subscriptions found for this account.' };
+        return { success: false, ownedPacks: [], message: 'No previous purchases found for this account.' };
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // GET CUSTOMER INFO
+    // GET CUSTOMER INFO  (direct RC query)
     // ─────────────────────────────────────────────────────────────────────────
     async getCustomerInfo() {
         try {
@@ -447,9 +488,48 @@ class SubscriptionService {
         }
     }
 
-    clearCache() {
-        cacheService.removeItem(this.cacheKey);
-        cacheService.removeItem(this.cacheTimestamp);
+    // ─────────────────────────────────────────────────────────────────────────
+    // GET PRICE STRINGS from RC offerings (so Subscriptions.jsx shows real prices)
+    // ─────────────────────────────────────────────────────────────────────────
+    async getPriceStrings() {
+        if (!this.isNative()) return {};
+
+        try {
+            const ready = await this.initializeRevenueCat();
+            if (!ready) return {};
+
+            const { current } = await Purchases.getOfferings();
+            if (!current) return {};
+
+            const prices = {};
+            for (const pkg of Object.values(current.availablePackages)) {
+                const productId = pkg.product?.productIdentifier;
+                if (productId) {
+                    prices[productId] = {
+                        priceString:   pkg.product.priceString,
+                        price:         pkg.product.price,
+                        currencyCode:  pkg.product.currencyCode,
+                    };
+                }
+            }
+            debugLog('info', '[RC] Price strings:', prices);
+            return prices;
+        } catch (e) {
+            debugLog('warn', '[RC] getPriceStrings failed:', e.message);
+            return {};
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CACHE MANAGEMENT
+    // ─────────────────────────────────────────────────────────────────────────
+    clearPacksCache() {
+        cacheService.removeItem(this.packsCache);
+        debugLog('info', '[Cache] Packs cache cleared');
+    }
+
+    clearAllCaches() {
+        this.clearPacksCache();
     }
 }
 
