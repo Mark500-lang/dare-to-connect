@@ -175,25 +175,15 @@ workflows:
       - name: Configure Entitlements
         script: |
           set -ex
-          echo "=== Writing App Entitlements ==="
           ENTITLEMENTS_PATH="ios/App/App/App.entitlements"
 
-          # Create or overwrite entitlements file with IAP + Push enabled
+          # Overwrite whatever is in the repo — only push notifications needed
+          # com.apple.developer.in-app-payments is NOT required for StoreKit/RevenueCat IAP
           cat > "$ENTITLEMENTS_PATH" << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
-              <!-- In-App Purchase entitlement (required for StoreKit / RevenueCat) -->
-              <key>com.apple.developer.in-app-payments</key>
-              <array>
-                  <string>com.daretoconnect.pack.social</string>
-                  <string>com.daretoconnect.pack.couples</string>
-                  <string>com.daretoconnect.pack.wellness</string>
-                  <string>com.daretoconnect.pack.career</string>
-                  <string>com.daretoconnect.pack.bundle</string>
-              </array>
-              <!-- Push notifications (existing) -->
               <key>aps-environment</key>
               <string>production</string>
           </dict>
@@ -203,15 +193,12 @@ workflows:
           echo "✅ Entitlements written:"
           cat "$ENTITLEMENTS_PATH"
 
-          # Wire entitlements file into the Xcode project pbxproj
-          # so Xcode knows to use it during signing
           cd ios/App
           if grep -q "CODE_SIGN_ENTITLEMENTS" App.xcodeproj/project.pbxproj; then
             sed -i '' \
               's|CODE_SIGN_ENTITLEMENTS = .*|CODE_SIGN_ENTITLEMENTS = App/App.entitlements;|g' \
               App.xcodeproj/project.pbxproj
           else
-            # Insert after ALWAYS_SEARCH_USER_PATHS if CODE_SIGN_ENTITLEMENTS is absent
             sed -i '' \
               '/ALWAYS_SEARCH_USER_PATHS/a\
               CODE_SIGN_ENTITLEMENTS = App/App.entitlements;' \
