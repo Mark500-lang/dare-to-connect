@@ -97,47 +97,66 @@ class SubscriptionService {
     // ─────────────────────────────────────────────────────────────────────────
     async initializeRevenueCat() {
         if (this.revenueCatInitialized) return true;
-
+    
         if (!this.isNative()) {
-            debugLog('warn', '[RC] Non-native platform — skipping RevenueCat init.');
+            debugLog('warn', '[RC] Non-native — skipping RC init.');
             this.revenueCatInitialized = true;
             return true;
         }
-
+    
         try {
             this.platform = this.getPlatform();
             const apiKey  = this.getRevenueCatApiKey();
-
+    
             if (!apiKey) {
-                debugLog('error', '[RC] No API key for platform:', this.platform);
+                debugLog('error', '[RC] No API key found for platform:', this.platform);
+                debugLog('error', '[RC] Check REACT_APP_REVENUECAT_IOS_API_KEY env variable');
+                // Don't block — let purchase attempt surface the real error
+                this.revenueCatInitialized = true;
                 return false;
             }
-
-            if (process.env.NODE_ENV !== 'production') {
+    
+            // Always set log level first — safe even before configure
+            try {
                 await Purchases.setLogLevel({ level: 'DEBUG' });
+            } catch (e) {
+                debugLog('warn', '[RC] setLogLevel failed (non-fatal):', e.message);
             }
-
+    
             await Purchases.configure({ apiKey });
-            debugLog('info', '[RC] Configured for platform:', this.platform);
-
-            // Tie entitlements to the user's account so they persist across reinstalls
+            debugLog('info', '[RC] Configured. Platform:', this.platform, 'Key starts with:', apiKey.substring(0, 8));
+    
+            // Log in with user ID if available — ties entitlements to account
+            // If no user yet (guest browsing to purchase screen), use anonymous
             const currentUser = authService.getUser();
             if (currentUser?.id) {
-                await Purchases.logIn({ appUserID: String(currentUser.id) });
-                debugLog('info', '[RC] Logged in as user ID:', currentUser.id);
+                try {
+                    await Purchases.logIn({ appUserID: String(currentUser.id) });
+                    debugLog('info', '[RC] Logged in as user ID:', currentUser.id);
+                } catch (loginErr) {
+                    // Non-fatal — anonymous purchases still work
+                    debugLog('warn', '[RC] logIn failed (non-fatal):', loginErr.message);
+                }
             } else {
-                debugLog('warn', '[RC] No user — RC using anonymous ID');
+                debugLog('warn', '[RC] No user yet — RC using anonymous ID');
             }
-
+    
             await this._logOfferings();
-
+    
             this.revenueCatInitialized = true;
             debugLog('success', '[RC] Initialization complete');
             return true;
-
+    
         } catch (error) {
-            debugLog('error', '[RC] Init failed:', error.message);
-            this.revenueCatInitialized = true; // prevent infinite retry
+            debugLog('error', '[RC] Init error:', error.message);
+            // Mark as attempted so we don't retry infinitely
+            this.revenueCatInitialized = true;
+    
+            // Surface a clearer error for the common misconfiguration case
+            if (error.message?.includes('API key') || error.message?.includes('configure')) {
+                throw new Error('RevenueCat API key is missing or invalid. Check your app configuration.');
+            }
+    
             return false;
         }
     }
@@ -249,83 +268,92 @@ class SubscriptionService {
      */
     async purchasePackage(productId) {
         if (!this.isNative()) {
-            throw new Error('In-app purchases are only available on iOS and Android.');
+            throw new Error('In-app purchases are only available on the iOS or Android app.');
         }
-
+    
         debugLog('info', '[RC] Starting purchase for productId:', productId);
-
+    
+        // Reset init flag so we retry if a previous attempt failed
+        if (!this.revenueCatInitialized) {
+            this.revenueCatInitialized = false;
+        }
+    
         const ready = await this.initializeRevenueCat();
-        if (!ready) throw new Error('Payment system could not be initialised.');
-
-        // 1. Fetch offerings
-        const { current } = await Purchases.getOfferings();
-        if (!current) throw new Error('No offerings available. Please check your connection.');
-
+        if (!ready) {
+            const apiKey = this.getRevenueCatApiKey();
+            if (!apiKey) {
+                throw new Error(
+                    'In-app purchases are not configured for this build. ' +
+                    'Please contact support if this issue persists.'
+                );
+            }
+            throw new Error('Payment system could not be initialised. Please check your internet connection and try again.');
+        }
+    
+        // Fetch offerings
+        let current;
+        try {
+            const offerings = await Purchases.getOfferings();
+            current = offerings.current;
+        } catch (e) {
+            debugLog('error', '[RC] getOfferings failed:', e.message);
+            throw new Error('Could not load available products. Please check your connection and try again.');
+        }
+    
+        if (!current) {
+            throw new Error(
+                'No products found. Make sure you are using a sandbox test account ' +
+                'and that products are in Ready to Submit state in App Store Connect.'
+            );
+        }
+    
         const allPackages = Object.values(current.availablePackages);
         debugLog('info', '[RC] Available packages:', allPackages.map(p => ({
             rcId:      p.identifier,
             productId: p.product?.productIdentifier,
             price:     p.product?.priceString,
         })));
-
-        // 2. Find the RC package matching this productId
-        // Match by productIdentifier first (most reliable), then by RC package identifier
+    
         const packageToPurchase =
             allPackages.find(p => p.product?.productIdentifier === productId) ||
             allPackages.find(p => RC_PACKAGE_TO_PRODUCT[p.identifier] === productId);
-
+    
         if (!packageToPurchase) {
-            throw new Error(`Pack not available for purchase: ${productId}`);
+            throw new Error(
+                `Product "${productId}" not found in current offering. ` +
+                'Verify the product ID matches App Store Connect exactly.'
+            );
         }
-
-        debugLog('info', '[RC] Purchasing:', {
-            rcId:      packageToPurchase.identifier,
-            productId: packageToPurchase.product?.productIdentifier,
-            price:     packageToPurchase.product?.priceString,
-        });
-
-        // 3. Create backend payment reference
-        // We pass packId = the numeric id from the packs table.
-        // The backend recordSubscription resolves the productId from it.
+    
+        // Create backend payment reference
         const paymentRefData = await this.initiatePayment(productId);
         if (!paymentRefData?.ref_no) throw new Error('Failed to generate payment reference.');
-        debugLog('info', '[RC] Payment ref:', paymentRefData.ref_no);
-
-        // 4. Native purchase sheet
+    
+        // Native purchase sheet
         let customerInfo;
         try {
-            debugLog('info', '[RC] Calling Purchases.purchasePackage...');
-            const rawResult = await Purchases.purchasePackage({ aPackage: packageToPurchase });
-
-            const plain  = this._plain(rawResult);
-            customerInfo = plain.customerInfo ?? plain;
-            debugLog('info', '[RC] customerInfo after purchase:', customerInfo);
-
+            const rawResult  = await Purchases.purchasePackage({ aPackage: packageToPurchase });
+            const plain      = this._plain(rawResult);
+            customerInfo     = plain.customerInfo ?? plain;
         } catch (purchaseError) {
             const msg  = (purchaseError.message || '').toLowerCase();
             const code = purchaseError.code;
-
+    
             if (msg.includes('cancelled') || msg.includes('canceled') || code === '1' || code === 1) {
                 throw new Error('Purchase was cancelled.');
             }
-
-            // Android: "already owned" → treat as success, fetch current state
             if (msg.includes('already owned') || msg.includes('already purchased')) {
-                debugLog('info', '[RC] Already owned — fetching customerInfo.');
                 const raw = await Purchases.getCustomerInfo();
                 customerInfo = this._plain(raw?.customerInfo ?? raw);
             } else {
                 throw purchaseError;
             }
         }
-
-        // 5. Record in backend
+    
         const ownedPacks = this.getOwnedPacks(customerInfo);
         await this.recordSubscription(productId, paymentRefData.ref_no, customerInfo);
-
-        // 6. Clear pack cache so library reloads with new ownership
         this.clearPacksCache();
-
+    
         debugLog('success', '[RC] Purchase complete. Owned packs:', ownedPacks);
         return { success: true, productId, ownedPacks };
     }
@@ -334,11 +362,10 @@ class SubscriptionService {
     // INITIATE PAYMENT  (creates a ref_no in the backend payments table)
     // ─────────────────────────────────────────────────────────────────────────
     async initiatePayment(productId) {
-        const accessToken = authService.getAccessToken();
-        if (!accessToken) throw new Error('You must be logged in to make a purchase.');
-
-        // Map productId → numeric pack id for the backend
-        // The backend's initiatePayment still expects a numeric packageId
+        // accessToken is optional — guest purchases are allowed
+        // Backend handles null accessToken gracefully
+        const accessToken = authService.getAccessToken() ?? null;
+    
         const packIdMap = {
             'com.daretoconnect.pack.social':   1,
             'com.daretoconnect.pack.couples':  2,
@@ -348,35 +375,35 @@ class SubscriptionService {
         };
         const packageId = packIdMap[productId];
         if (!packageId) throw new Error(`Unknown productId: ${productId}`);
-
-        debugLog('info', '[RC] initiatePayment — productId:', productId, 'packageId:', packageId);
-
+    
+        debugLog('info', '[RC] initiatePayment — productId:', productId, 'packageId:', packageId, 'guest:', !accessToken);
+    
         const response = await fetch(`${API_CONFIG.BASE_URL}/initiatePayment`, {
             method:  'POST',
             headers: API_CONFIG.HEADERS,
             body:    JSON.stringify({
-                hashedKey:  API_CONFIG.API_KEY,
-                accessToken,
+                hashedKey:   API_CONFIG.API_KEY,
+                accessToken, // null for guests — backend accepts this now
                 packageId,
             }),
         });
-
+    
         const text = await response.text();
         debugLog('info', '[RC] initiatePayment response:', text);
-
+    
         let data;
         try   { data = JSON.parse(text); }
         catch { throw new Error('Invalid response from server.'); }
-
+    
         if (data.status?.toLowerCase() !== 'ok') {
             throw new Error(data.message || 'Payment initiation failed.');
         }
-
+    
         const result = data.result;
         if (result?.ref_no)             return result;
         if (result?.refNo)              return { ref_no: result.refNo };
         if (typeof result === 'string') return { ref_no: result };
-
+    
         throw new Error('No payment reference returned from backend.');
     }
 

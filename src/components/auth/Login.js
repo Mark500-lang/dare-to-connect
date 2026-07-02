@@ -15,20 +15,17 @@ const Login = () => {
     const location = useLocation();
     const { login } = useAuth();
 
-    // Set status bar style
-    useStatusBar('dark', '#ffffff');
+    useStatusBar('light', '#ffffff');
 
-
-    // Read activation message passed by useDeepLink hook
     const activationMessage = location.state?.message || null;
 
     const [formData, setFormData] = useState({
-        email: location.state?.email || '', // Pre-fill email if passed from deep link
+        email:    location.state?.email || '',
         password: ''
     });
     const [showPassword, setShowPassword] = useState(false);
-    const [error, setError] = useState(null);
-    const [success, setSuccess] = useState(activationMessage); // Show activation message immediately
+    const [error,   setError]   = useState(null);
+    const [success, setSuccess] = useState(activationMessage);
     const [loading, setLoading] = useState(false);
 
     const handleChange = (e) => {
@@ -43,7 +40,6 @@ const Login = () => {
             setError('Please fill in all required fields');
             return;
         }
-
         if (!/\S+@\S+\.\S+/.test(formData.email)) {
             setError('Please enter a valid email address');
             return;
@@ -59,7 +55,6 @@ const Login = () => {
             setTimeout(() => navigate('/library'), 1500);
         } catch (err) {
             console.error('Login error:', err);
-
             if (err.message.includes('Network error') || err.message.includes('Failed to fetch')) {
                 setError('Network error. Please check your internet connection and try again.');
             } else if (err.message.includes('Server error')) {
@@ -79,8 +74,8 @@ const Login = () => {
     };
 
     const muiInputSx = {
-        '& label.Mui-focused': { color: '#1674a2' },
-        '& .MuiInput-underline:after': { borderBottomColor: '#1674a2' }
+        '& label.Mui-focused':          { color: '#1674a2' },
+        '& .MuiInput-underline:after':  { borderBottomColor: '#1674a2' },
     };
 
     return (
@@ -92,25 +87,24 @@ const Login = () => {
                     aria-label="Go back"
                     color="#000000ff"
                 />
-                <h1 className='game-details-title'>Sign In</h1>
+                <h1 className="game-details-title">Sign In</h1>
             </div>
 
             <img src={logo} alt="Dare To Connect" className="auth-logo" />
 
-            {/* Activation success banner — shown inline at top, not as a snackbar */}
             {activationMessage && (
-                <Alert
-                    severity="success"
-                    sx={{ mx: 2, mb: 1, borderRadius: 2 }}
-                    onClose={() => {}}
-                >
+                <Alert severity="success" sx={{ mx: 2, mb: 1, borderRadius: 2 }} onClose={() => {}}>
                     {activationMessage}
                 </Alert>
             )}
+
             <div className="auth-content">
                 <p className="auth-title">Sign in to your account</p>
 
-                <form className="auth-form" onSubmit={handleSubmit}>
+                {/* autocomplete="on" tells the browser/WebView this is a login form
+                    so it offers saved credentials and email suggestions             */}
+                <form className="auth-form" onSubmit={handleSubmit} autoComplete="on">
+
                     <TextField
                         label="Email Address"
                         variant="standard"
@@ -122,10 +116,19 @@ const Login = () => {
                         sx={muiInputSx}
                         required
                         disabled={loading}
+                        // These three together enable Android keyboard email suggestions
+                        // and allow long-press copy/paste on the native input element
+                        inputProps={{
+                            id:           'login-email',
+                            autoComplete: 'email',       // tells keyboard: suggest saved emails
+                            autoCorrect:  'off',
+                            autoCapitalize: 'off',
+                            spellCheck:   false,
+                        }}
                     />
 
                     <TextField
-                        label="Password*"
+                        label="Password"
                         variant="standard"
                         type={showPassword ? 'text' : 'password'}
                         name="password"
@@ -135,6 +138,13 @@ const Login = () => {
                         sx={muiInputSx}
                         required
                         disabled={loading}
+                        inputProps={{
+                            id:           'login-password',
+                            autoComplete: 'current-password',  // triggers password manager
+                            autoCorrect:  'off',
+                            autoCapitalize: 'off',
+                            spellCheck:   false,
+                        }}
                         InputProps={{
                             endAdornment: (
                                 <InputAdornment position="end">
@@ -184,28 +194,17 @@ const Login = () => {
                         SIGN UP
                     </button>
                 </form>
-                
             </div>
 
-            {/* Error Snackbar */}
-            <Snackbar
-                open={!!error}
-                autoHideDuration={6000}
-                onClose={() => setError(null)}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-            >
+            <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
                 <Alert severity="error" onClose={() => setError(null)} sx={{ width: '100%' }}>
                     {error}
                 </Alert>
             </Snackbar>
 
-            {/* Login success Snackbar */}
-            <Snackbar
-                open={!!success && !activationMessage}
-                autoHideDuration={3000}
-                onClose={() => setSuccess(null)}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-            >
+            <Snackbar open={!!success && !activationMessage} autoHideDuration={3000} onClose={() => setSuccess(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
                 <Alert severity="success" onClose={() => setSuccess(null)} sx={{ width: '100%' }}>
                     {success}
                 </Alert>

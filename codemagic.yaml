@@ -357,7 +357,7 @@ workflows:
 
           FINAL=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST_PATH")
           if [ -z "$FINAL" ] || [[ "$FINAL" == *"$"* ]]; then
-            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 3.1" "$PLIST_PATH"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 3.2" "$PLIST_PATH"
             /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_BUILD"     "$PLIST_PATH"
           fi
           echo "✅ Version: $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' $PLIST_PATH) build $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' $PLIST_PATH)"

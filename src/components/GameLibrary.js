@@ -61,7 +61,7 @@ const SkeletonGrid = () => (
 
 // ── Main component ─────────────────────────────────────────────────────────────
 const GameLibrary = () => {
-    useStatusBar('dark', '#ffffff');
+    useStatusBar('light', '#ffffff');
     const navigate          = useNavigate();
     const { toggleSidebar } = useOutletContext();
     const { games, refreshGames, loading } = useAuth();
@@ -225,14 +225,14 @@ const GameLibrary = () => {
 
     const handlePackClick = (pack) => {
         const owned = subscriptionService.isPackOwned(pack.productId, ownedPacks);
+    
         if (owned) {
-                // navigate('/subscriptions', { state: { packId: pack.id, productId: pack.productId } });
-
+            // Already owned — go to pack detail to play
             navigate(`/pack/${pack.id}`, { state: { pack, ownedPacks } });
         } else {
-                        // navigate(`/pack/${pack.id}`, { state: { pack, ownedPacks } });
-
-            navigate('/subscriptions', { state: { packId: pack.id, productId: pack.productId } });
+            navigate('/subscriptions', {
+                state: { packId: pack.id, productId: pack.productId }
+            });
         }
     };
 
@@ -370,8 +370,8 @@ const GameLibrary = () => {
 
                                                 {/* Name + owned */}
                                                 <div className="game-name-container">
-                                                    { !isOwned && <span className="game-name">{pack.packName}</span> }
-                                                    {isOwned && <span className="owned-badge">OWNED ✓</span>}
+                                                    {!isOwned && <span className="game-name">{pack.packName}</span> }
+                                                    {isOwned && <div className="owned-badge"></div>}
                                                 </div>
                                             </div>
                                         );

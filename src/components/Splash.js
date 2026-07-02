@@ -6,7 +6,7 @@ import { useStatusBar } from '../hooks/useStatusBar';
 
 const Splash = () => {
     // Light icons (white) on the blue splash background
-    useStatusBar('light', '#1674a2');
+    useStatusBar('dark', '#1674a2');
 
     const navigate = useNavigate();
 

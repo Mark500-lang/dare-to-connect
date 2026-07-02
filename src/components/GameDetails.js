@@ -11,7 +11,7 @@ import { useStatusBar } from '../hooks/useStatusBar';
 const gameImageCache = new Map();
 
 const GameDetails = () => {
-    useStatusBar('dark', '#ffffff');
+    useStatusBar('light', '#ffffff');
     const { gameId } = useParams();
     const navigate = useNavigate();
     const { user, isAuthenticated } = useAuth();

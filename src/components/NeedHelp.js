@@ -17,9 +17,11 @@ import {
 } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 import supportService from '../services/supportService';
+import { useStatusBar } from '../hooks/useStatusBar';
 import './NeedHelp.css';
 
 const NeedHelp = () => {
+  useStatusBar('light', '#ffffff');
   const navigate = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);

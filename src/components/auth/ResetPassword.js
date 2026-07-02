@@ -9,7 +9,7 @@ import logo from '../../assets/Logos/Logo blue.png';
 import { useStatusBar } from '../../hooks/useStatusBar';
 
 const ResetPassword = () => {
-    useStatusBar('dark', '#ffffff');
+    useStatusBar('light', '#ffffff');
     const navigate = useNavigate();
     const { forgotPassword } = useAuth();
     const [email, setEmail] = useState('');

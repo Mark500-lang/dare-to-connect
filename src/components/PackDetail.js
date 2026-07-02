@@ -21,7 +21,7 @@ const preloadImage = (url) =>
     });
 
 const PackDetail = () => {
-    useStatusBar('dark', '#ffffff');
+    useStatusBar('light', '#ffffff');
     const { packId }  = useParams();
     const navigate    = useNavigate();
     const location    = useLocation();

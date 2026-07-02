@@ -10,7 +10,7 @@ import './GameCard.css';
 import { useStatusBar } from '../hooks/useStatusBar';
 
 const GameCard = () => {
-    useStatusBar('dark', '#ffffff');
+    useStatusBar('light', '#ffffff');
     const { gameId } = useParams();
     const navigate = useNavigate();
     const { subscription } = useAuth();
