@@ -103,17 +103,9 @@ workflows:
           fi
           echo "✅ RC Android key present (length: ${#REACT_APP_REVENUECAT_ANDROID_API_KEY})"
 
-          if [ -z "$REACT_APP_API_KEY" ]; then
-            echo "❌ REACT_APP_API_KEY is empty"
-            exit 1
-          fi
-          echo "✅ Backend API key present"
-
           # Inject all keys into the production build
           echo "REACT_APP_REVENUECAT_IOS_API_KEY=$REACT_APP_REVENUECAT_IOS_API_KEY"         >> .env.production
           echo "REACT_APP_REVENUECAT_ANDROID_API_KEY=$REACT_APP_REVENUECAT_ANDROID_API_KEY" >> .env.production
-          echo "REACT_APP_API_KEY=$REACT_APP_API_KEY"                                       >> .env.production
-
           export DISABLE_ESLINT_PLUGIN=true
           export ESLINT_NO_DEV_ERRORS=false
           npm run build
