@@ -135,7 +135,7 @@ workflows:
             pod 'CapacitorBrowser',               :path => '../../node_modules/@capacitor/browser'
             pod 'CapacitorDevice',                :path => '../../node_modules/@capacitor/device'
             pod 'CapacitorStatusBar',             :path => '../../node_modules/@capacitor/status-bar'
-            pod 'CAPShare',                       :path => '../../node_modules/@capacitor/share'
+            pod 'CapacitorShare',                 :path => '../../node_modules/@capacitor/share'
             pod 'RevenuecatPurchasesCapacitor',   :path => '../../node_modules/@revenuecat/purchases-capacitor'
           end
 
@@ -154,6 +154,9 @@ workflows:
               end
             end
           end
+          EOF
+
+          pod install --repo-update
 
           if grep -q "CapacitorShare" Podfile.lock; then
             echo "✅ Capacitor Share installed"
@@ -161,9 +164,6 @@ workflows:
             echo "⚠️  CapacitorShare not in Podfile.lock — checking actual name"
             cat node_modules/@capacitor/share/ios/Plugin.podspec 2>/dev/null | grep "s.name" || true
           fi
-          EOF
-
-          pod install --repo-update
 
           # Verify RevenueCat was installed
           if grep -q "RevenuecatPurchasesCapacitor" Podfile.lock; then
