@@ -135,7 +135,7 @@ workflows:
             pod 'CapacitorBrowser',               :path => '../../node_modules/@capacitor/browser'
             pod 'CapacitorDevice',                :path => '../../node_modules/@capacitor/device'
             pod 'CapacitorStatusBar',             :path => '../../node_modules/@capacitor/status-bar'
-            pod 'CapacitorShare', :path => '../../node_modules/@capacitor/share'
+            pod 'CAPShare',                       :path => '../../node_modules/@capacitor/share'
             pod 'RevenuecatPurchasesCapacitor',   :path => '../../node_modules/@revenuecat/purchases-capacitor'
           end
 
