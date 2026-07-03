@@ -1,215 +1,121 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaArrowLeft, FaShareAlt, FaCopy, FaWhatsapp, FaFacebook, FaTwitter, FaLink } from 'react-icons/fa';
-import { 
-  Button, 
-  Alert, 
-  Snackbar,
-  Box,
-  Typography,
-  Paper,
-  Grid,
-  IconButton,
-  TextField
-} from '@mui/material';
+import { FaWhatsapp, FaFacebook, FaTwitter, FaCopy, FaShareAlt } from 'react-icons/fa';
+import { IoIosArrowBack } from 'react-icons/io';
+import { Alert, Snackbar } from '@mui/material';
+import { useStatusBar } from '../hooks/useStatusBar';
+import shareService from '../services/shareService';
 import './TellAFriend.css';
 
 const TellAFriend = () => {
-  const navigate = useNavigate();
-  const [copied, setCopied] = useState(false);
-  const [success, setSuccess] = useState(null);
+    const navigate = useNavigate();
+    useStatusBar('dark', '#ffffff');
 
-  const appLink = 'https://play.google.com/store/apps/details?id=com.daretoconnect.games';
-  const shareMessage = `Check out Dare to Connect Games! An amazing collection of interactive games to challenge your mind and have fun. Download now: ${appLink}`;
+    const [toast, setToast] = useState(null); // { message, severity }
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(appLink)
-      .then(() => {
-        setCopied(true);
-        setSuccess('Link copied to clipboard!');
-        setTimeout(() => setCopied(false), 2000);
-      })
-      .catch(err => {
-        console.error('Failed to copy:', err);
-        setSuccess('Failed to copy link. Please try again.');
-      });
-  };
+    const appLink = shareService.getAppLink();
 
-  const handleShare = async (platform) => {
-    const shareData = {
-      title: 'Dare to Connect Games',
-      text: shareMessage,
-      url: appLink
+    // ── Native share sheet (iOS + Android) ───────────────────────────────────
+    const handleNativeShare = async () => {
+        const result = await shareService.shareApp();
+        if (result.copied)    setToast({ message: 'Link copied to clipboard!', severity: 'success' });
+        else if (result.error) setToast({ message: result.error,                severity: 'error' });
+        // cancelled → do nothing, user just dismissed the sheet
     };
 
-    try {
-      switch (platform) {
-        case 'whatsapp':
-          window.open(`https://wa.me/?text=${encodeURIComponent(shareMessage)}`, '_blank');
-          break;
-          
-        case 'facebook':
-          window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(appLink)}`, '_blank');
-          break;
-          
-        case 'twitter':
-          window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMessage)}`, '_blank');
-          break;
-          
-        default:
-          if (navigator.share) {
-            await navigator.share(shareData);
-            setSuccess('Shared successfully!');
-          } else {
-            handleCopyLink();
-          }
-      }
-    } catch (err) {
-      console.error('Share error:', err);
-    }
-  };
+    // ── Platform-specific share buttons ──────────────────────────────────────
+    const handlePlatformShare = async (platform) => {
+        const result = await shareService.shareToPlatform(platform);
+        if (result.error) setToast({ message: result.error, severity: 'error' });
+    };
 
-  const shareOptions = [
-    {
-      id: 'whatsapp',
-      name: 'WhatsApp',
-      icon: <FaWhatsapp />,
-      color: '#25D366'
-    },
-    {
-      id: 'facebook',
-      name: 'Facebook',
-      icon: <FaFacebook />,
-      color: '#1877F2'
-    },
-    {
-      id: 'twitter',
-      name: 'Twitter',
-      icon: <FaTwitter />,
-      color: '#1DA1F2'
-    }
-  ];
+    // ── Copy link ─────────────────────────────────────────────────────────────
+    const handleCopyLink = async () => {
+        try {
+            await navigator.clipboard.writeText(appLink);
+            setToast({ message: 'Link copied!', severity: 'success' });
+        } catch {
+            setToast({ message: 'Could not copy. Please copy the link manually.', severity: 'error' });
+        }
+    };
 
-  return (
-    <div className="tell-friend-page">
-      <div className="tell-friend-header">
-        <FaArrowLeft onClick={() => navigate(-1)} />
-        <span>Tell a Friend</span>
-      </div>
+    const platforms = [
+        { id: 'whatsapp', label: 'WhatsApp', icon: <FaWhatsapp />, color: '#25D366' },
+        { id: 'facebook', label: 'Facebook', icon: <FaFacebook />, color: '#1877F2' },
+        { id: 'twitter',  label: 'Twitter',  icon: <FaTwitter />,  color: '#1DA1F2' },
+    ];
 
-      <Paper className="tell-friend-content" elevation={0}>
-        <Box className="share-intro">
-          <FaShareAlt className="share-icon" />
-          <Typography variant="h6" className="share-title">
-            Share the Fun!
-          </Typography>
-          <Typography variant="body2" color="text.secondary" className="share-description">
-            Spread the joy of Dare to Connect Games with your friends. Share the app link and let them join the excitement!
-          </Typography>
-        </Box>
+    return (
+        <div className="standalone-page">
+            <div className="game-details-header">
+                <IoIosArrowBack
+                    className="back-button"
+                    color="#000000ff"
+                    onClick={() => navigate(-1)}
+                    aria-label="Go back"
+                />
+                <span className="game-details-title">Tell a Friend</span>
+            </div>
 
-        {/* Link Display */}
-        <Paper className="link-container" elevation={0}>
-          <Grid container alignItems="center" spacing={1}>
-            <Grid item>
-              <FaLink className="link-icon" />
-            </Grid>
-            <Grid item xs>
-              <TextField
-                value={appLink}
-                fullWidth
-                size="small"
-                variant="standard"
-                InputProps={{
-                  readOnly: true,
-                  disableUnderline: true
-                }}
-              />
-            </Grid>
-            <Grid item>
-              <IconButton
-                onClick={handleCopyLink}
-                className={copied ? 'copied' : ''}
-                size="small"
-              >
-                <FaCopy />
-              </IconButton>
-            </Grid>
-          </Grid>
-        </Paper>
+            <div className="tell-friend-content">
 
-        {/* Share Options */}
-        <Typography variant="subtitle1" className="share-options-title">
-          Share via
-        </Typography>
-        
-        <Grid container spacing={2} className="share-options">
-          {shareOptions.map((option) => (
-            <Grid item xs={4} key={option.id}>
-              <Button
-                variant="outlined"
-                fullWidth
-                startIcon={option.icon}
-                onClick={() => handleShare(option.id)}
-                sx={{
-                  py: 2,
-                  borderColor: option.color,
-                  color: option.color,
-                  '&:hover': {
-                    borderColor: option.color,
-                    backgroundColor: `${option.color}10`
-                  }
-                }}
-              >
-                {option.name}
-              </Button>
-            </Grid>
-          ))}
-        </Grid>
+                {/* Hero */}
+                <div className="tell-friend-hero">
+                    <div className="tell-friend-emoji">🎉</div>
+                    <h2 className="tell-friend-heading">Share the Fun!</h2>
+                    <p className="tell-friend-sub">
+                        Know someone who'd love a good conversation game?
+                        Share Dare to Connect with them.
+                    </p>
+                </div>
 
-        {/* Share Button */}
-        <Button
-          variant="contained"
-          fullWidth
-          size="large"
-          startIcon={<FaShareAlt />}
-          onClick={() => handleShare('native')}
-          sx={{
-            mt: 3,
-            py: 1.5,
-            backgroundColor: '#1674a2',
-            '&:hover': {
-              backgroundColor: '#0d5a7d'
-            }
-          }}
-        >
-          SHARE NOW
-        </Button>
+                {/* Link row */}
+                <div className="tell-friend-link-row">
+                    <span className="tell-friend-link-text" title={appLink}>
+                        {appLink.replace('https://', '')}
+                    </span>
+                    <button className="tell-friend-copy-btn" onClick={handleCopyLink} aria-label="Copy link">
+                        <FaCopy />
+                    </button>
+                </div>
 
-        {/* Incentive Section */}
-        <Box className="incentive-section">
-          <Typography variant="body2" color="text.secondary" className="incentive-text">
-            💎 Share with 5 friends and get 1 week free subscription!
-          </Typography>
-          <Typography variant="caption" color="text.secondary" className="incentive-note">
-            *Offer valid for first-time users only
-          </Typography>
-        </Box>
-      </Paper>
+                {/* Primary share button — native sheet */}
+                <button className="tell-friend-share-btn" onClick={handleNativeShare}>
+                    <FaShareAlt style={{ marginRight: 8 }} />
+                    Share Now
+                </button>
 
-      {/* Success Message */}
-      <Snackbar 
-        open={!!success} 
-        autoHideDuration={3000} 
-        onClose={() => setSuccess(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert severity="success" onClose={() => setSuccess(null)}>
-          {success}
-        </Alert>
-      </Snackbar>
-    </div>
-  );
+                {/* Platform buttons */}
+                <p className="tell-friend-or">or share directly via</p>
+                <div className="tell-friend-platforms">
+                    {platforms.map(p => (
+                        <button
+                            key={p.id}
+                            className="tell-friend-platform-btn"
+                            style={{ '--platform-color': p.color }}
+                            onClick={() => handlePlatformShare(p.id)}
+                            aria-label={`Share on ${p.label}`}
+                        >
+                            <span className="tell-friend-platform-icon">{p.icon}</span>
+                            <span className="tell-friend-platform-label">{p.label}</span>
+                        </button>
+                    ))}
+                </div>
+
+            </div>
+
+            <Snackbar
+                open={!!toast}
+                autoHideDuration={3000}
+                onClose={() => setToast(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert severity={toast?.severity ?? 'success'} onClose={() => setToast(null)}>
+                    {toast?.message}
+                </Alert>
+            </Snackbar>
+        </div>
+    );
 };
 
 export default TellAFriend;

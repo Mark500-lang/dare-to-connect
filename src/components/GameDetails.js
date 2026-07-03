@@ -102,11 +102,11 @@ const GameDetails = () => {
     };
 
     const handleStartNew = () => {
-        // Check authentication for non-free games
-        if (gameId !== "1" && !isAuthenticated) {
-            navigate('/register');
-            return;
-        }
+        // // Check authentication for non-free games
+        // if (gameId !== "1" && !isAuthenticated) {
+        //     navigate('/register');
+        //     return;
+        // }
         
         // Clear any existing progress
         localStorage.removeItem(`game_${gameId}_progress`);
@@ -115,10 +115,10 @@ const GameDetails = () => {
 
     const handleContinue = () => {
         // Check authentication for non-free games
-        if (gameId !== "1" && !isAuthenticated) {
-            navigate('/register');
-            return;
-        }
+        // if (gameId !== "1" && !isAuthenticated) {
+        //     navigate('/register');
+        //     return;
+        // }
         
         // Navigate to continue from saved progress
         navigate(`/card/${gameId}`);

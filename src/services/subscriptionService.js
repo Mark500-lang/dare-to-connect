@@ -24,6 +24,9 @@ const ALL_PACK_PRODUCT_IDS = [
     'com.daretoconnect.pack.bundle',
 ];
 
+let _rcConfigured = false;
+let _rcInitPromise = null; // prevents concurrent init calls
+
 class SubscriptionService {
     constructor() {
         this.packsCache            = 'packs_data';          // { packs, timestamp }
@@ -96,38 +99,45 @@ class SubscriptionService {
     // REVENUECAT INIT
     // ─────────────────────────────────────────────────────────────────────────
     async initializeRevenueCat() {
-        if (this.revenueCatInitialized) return true;
-    
+        // Already configured — return immediately
+        if (_rcConfigured) return true;
+
+        // If init is already in progress, wait for it rather than starting a second one
+        // This is critical on iOS where concurrent StoreKit configure calls cause errors
+        if (_rcInitPromise) return _rcInitPromise;
+
         if (!this.isNative()) {
-            debugLog('warn', '[RC] Non-native — skipping RC init.');
-            this.revenueCatInitialized = true;
+            _rcConfigured = true;
             return true;
         }
-    
+
+        _rcInitPromise = this._doInitialize();
+        const result   = await _rcInitPromise;
+        _rcInitPromise = null;
+        return result;
+    }
+
+    async _doInitialize() {
         try {
             this.platform = this.getPlatform();
             const apiKey  = this.getRevenueCatApiKey();
-    
+
             if (!apiKey) {
-                debugLog('error', '[RC] No API key found for platform:', this.platform);
-                debugLog('error', '[RC] Check REACT_APP_REVENUECAT_IOS_API_KEY env variable');
-                // Don't block — let purchase attempt surface the real error
-                this.revenueCatInitialized = true;
+                debugLog('error', '[RC] No API key for platform:', this.platform);
                 return false;
             }
-    
-            // Always set log level first — safe even before configure
-            try {
+
+            // Debug logging only in non-production
+            if (process.env.NODE_ENV !== 'production') {
                 await Purchases.setLogLevel({ level: 'DEBUG' });
-            } catch (e) {
-                debugLog('warn', '[RC] setLogLevel failed (non-fatal):', e.message);
             }
-    
+
             await Purchases.configure({ apiKey });
-            debugLog('info', '[RC] Configured. Platform:', this.platform, 'Key starts with:', apiKey.substring(0, 8));
-    
-            // Log in with user ID if available — ties entitlements to account
-            // If no user yet (guest browsing to purchase screen), use anonymous
+            // Set flag BEFORE logIn — a logIn failure must not block future purchase attempts
+            _rcConfigured = true;
+            debugLog('info', '[RC] Configured for platform:', this.platform);
+
+            // Log in with user account ID if available
             const currentUser = authService.getUser();
             if (currentUser?.id) {
                 try {
@@ -138,25 +148,18 @@ class SubscriptionService {
                     debugLog('warn', '[RC] logIn failed (non-fatal):', loginErr.message);
                 }
             } else {
-                debugLog('warn', '[RC] No user yet — RC using anonymous ID');
+                debugLog('warn', '[RC] No user — RC using anonymous ID');
             }
-    
+
             await this._logOfferings();
-    
-            this.revenueCatInitialized = true;
             debugLog('success', '[RC] Initialization complete');
             return true;
-    
+
         } catch (error) {
-            debugLog('error', '[RC] Init error:', error.message);
-            // Mark as attempted so we don't retry infinitely
-            this.revenueCatInitialized = true;
-    
-            // Surface a clearer error for the common misconfiguration case
-            if (error.message?.includes('API key') || error.message?.includes('configure')) {
-                throw new Error('RevenueCat API key is missing or invalid. Check your app configuration.');
-            }
-    
+            debugLog('error', '[RC] Init failed:', error.message);
+            // Do NOT set _rcConfigured = true on genuine failure
+            // so the next call retries rather than assuming success
+            _rcInitPromise = null;
             return false;
         }
     }
@@ -270,40 +273,44 @@ class SubscriptionService {
         if (!this.isNative()) {
             throw new Error('In-app purchases are only available on the iOS or Android app.');
         }
-    
+
         debugLog('info', '[RC] Starting purchase for productId:', productId);
-    
-        // Reset init flag so we retry if a previous attempt failed
-        if (!this.revenueCatInitialized) {
-            this.revenueCatInitialized = false;
-        }
-    
+
+        // Wait for init — may already be in progress from AuthContext startup
         const ready = await this.initializeRevenueCat();
         if (!ready) {
             const apiKey = this.getRevenueCatApiKey();
             if (!apiKey) {
                 throw new Error(
-                    'In-app purchases are not configured for this build. ' +
-                    'Please contact support if this issue persists.'
+                    'RevenueCat API key is missing from this build. ' +
+                    'Please update the app to the latest version.'
                 );
             }
-            throw new Error('Payment system could not be initialised. Please check your internet connection and try again.');
+            throw new Error(
+                'Payment system could not be initialised. ' +
+                'Please close the app fully, reopen it, and try again.'
+            );
         }
-    
-        // Fetch offerings
+
+        // Fetch offerings — surface real error rather than swallowing it
         let current;
         try {
             const offerings = await Purchases.getOfferings();
             current = offerings.current;
-        } catch (e) {
-            debugLog('error', '[RC] getOfferings failed:', e.message);
-            throw new Error('Could not load available products. Please check your connection and try again.');
-        }
-    
-        if (!current) {
+            debugLog('info', '[RC] Offerings received:', current ? 'yes' : 'empty');
+        } catch (offeringsErr) {
+            debugLog('error', '[RC] getOfferings failed:', offeringsErr.message);
             throw new Error(
-                'No products found. Make sure you are using a sandbox test account ' +
-                'and that products are in Ready to Submit state in App Store Connect.'
+                'Could not reach the App Store. ' +
+                'Please check your internet connection and Apple ID, then try again. ' +
+                `(${offeringsErr.message})`
+            );
+        }
+
+        if (!current || Object.keys(current.availablePackages ?? {}).length === 0) {
+            throw new Error(
+                'No products found in the App Store. ' +
+                'Please ensure you are signed into your Apple ID under Settings → App Store.'
             );
         }
     

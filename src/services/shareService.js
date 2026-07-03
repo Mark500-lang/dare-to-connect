@@ -1,178 +1,95 @@
-class ShareService {
-    constructor() {
-        this.appLinks = {
-            playStore: 'https://play.google.com/store/apps/details?id=com.daretoconnect.games',
-            appStore: 'https://apps.apple.com/app/6740762957', // Replace with your iOS App ID
-            appGallery: 'https://appgallery.huawei.com/app/CXXXXXXX', // Replace with your Huawei AppGallery ID
-        };
-        
-        this.shareText = 'Check out Dare to Connect Games! An amazing collection of interactive games to challenge your mind and have fun. Download now:';
-    }
+import { Share } from '@capacitor/share';
+import { Capacitor } from '@capacitor/core';
 
-    // Get the appropriate app link based on platform
-    getAppLink() {
-        const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-        
-        // iOS detection
-        if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
-            return this.appLinks.appStore;
-        }
-        
-        // Huawei detection
-        if (/huawei/i.test(userAgent) || /harmony/i.test(userAgent)) {
-            return this.appLinks.appGallery;
-        }
-        
-        // Default to Play Store for Android and others
-        return this.appLinks.playStore;
-    }
+const APP_LINKS = {
+    ios:     'https://apps.apple.com/app/dare-to-connect/id6741878124',
+    android: 'https://play.google.com/store/apps/details?id=daretoconnect.app.mobile',
+    default: 'https://daretoconnectgames.com/',
+};
 
-    // Main share function
+const getAppLink = () => {
+    const platform = Capacitor.getPlatform();
+    return APP_LINKS[platform] ?? APP_LINKS.default;
+};
+
+const shareService = {
+    /**
+     * Opens the native share sheet on iOS and Android via Capacitor.
+     * Falls back to clipboard copy on web.
+     * Returns { shared: true } or { copied: true } or { error }.
+     */
     async shareApp() {
-        const appLink = this.getAppLink();
-        
-        // CRITICAL FIX: Use ONLY text field, do NOT include URL separately
-        // This prevents the share sheet from trying to open a preview/referral page
-        const shareData = {
-            title: 'Dare to Connect Games',
-            text: `${this.shareText} ${appLink}`,
-            // REMOVED: url field - this was causing the referral page to open
+        const link    = getAppLink();
+        const message = `Check out Dare to Connect — a fun card game app for friends, couples and more!`;
+
+        if (Capacitor.isNativePlatform()) {
+            try {
+                await Share.share({
+                    title:         'Dare to Connect',
+                    text:          message,
+                    url:           link,
+                    dialogTitle:   'Share Dare to Connect',
+                });
+                return { shared: true };
+            } catch (err) {
+                // User dismissed the share sheet — not an error
+                if (err.message?.includes('cancelled') || err.message?.includes('canceled')) {
+                    return { cancelled: true };
+                }
+                console.error('[Share] Native share failed:', err);
+                return { error: err.message };
+            }
+        }
+
+        // Web fallback — try navigator.share first, then clipboard
+        if (navigator.share) {
+            try {
+                await navigator.share({ title: 'Dare to Connect', text: message, url: link });
+                return { shared: true };
+            } catch (err) {
+                if (err.name === 'AbortError') return { cancelled: true };
+            }
+        }
+
+        // Last resort — clipboard
+        try {
+            await navigator.clipboard.writeText(link);
+            return { copied: true };
+        } catch (err) {
+            return { error: 'Could not copy link. Please copy it manually.' };
+        }
+    },
+
+    /**
+     * Share to a specific platform by opening a URL.
+     * Used by the manual share buttons (WhatsApp, Facebook, etc.)
+     * Does NOT navigate away — opens in external browser.
+     */
+    async shareToPlatform(platform) {
+        const link    = getAppLink();
+        const message = `Check out Dare to Connect — a fun card game app for friends, couples and more! ${link}`;
+
+        const urls = {
+            whatsapp: `https://wa.me/?text=${encodeURIComponent(message)}`,
+            facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`,
+            twitter:  `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}`,
         };
 
-        try {
-            // Method 1: Web Share API (iOS, Android, modern browsers)
-            if (navigator.share) {
-                await navigator.share(shareData);
-                return { success: true, method: 'web-share' };
-            }
+        const url = urls[platform];
+        if (!url) return { error: 'Unknown platform' };
 
-            // Method 2: Capacitor Share Plugin
-            if (window.Capacitor && window.Capacitor.Plugins?.Share) {
-                await window.Capacitor.Plugins.Share.share({
-                    title: shareData.title,
-                    text: shareData.text,
-                    dialogTitle: 'Share with' // Android only
-                });
-                return { success: true, method: 'capacitor-share' };
-            }
-
-            // Method 3: Cordova Social Sharing Plugin
-            if (window.plugins?.socialsharing) {
-                return new Promise((resolve) => {
-                    window.plugins.socialsharing.share(
-                        shareData.text, // message
-                        shareData.title, // subject
-                        null, // image
-                        null, // REMOVED: link - prevents referral page
-                        () => resolve({ success: true, method: 'cordova-social-sharing' }),
-                        (error) => resolve({ success: false, method: 'cordova-social-sharing', error })
-                    );
-                });
-            }
-
-            // Method 4: Native bridge for specific platforms
-            if (this.isAndroidWebView()) {
-                return this.shareViaAndroidBridge(shareData);
-            }
-
-            if (this.isIOSWebView()) {
-                return this.shareViaIOSBridge(shareData);
-            }
-
-            // Fallback: Copy to clipboard
-            return this.fallbackShare(shareData);
-
-        } catch (error) {
-            console.error('Share error:', error);
-            return this.fallbackShare(shareData);
+        if (Capacitor.isNativePlatform()) {
+            // Use Capacitor Browser to open externally without leaving the app
+            const { Browser } = await import('@capacitor/browser');
+            await Browser.open({ url });
+        } else {
+            window.open(url, '_blank', 'noopener,noreferrer');
         }
-    }
 
-    // Check if running in Android WebView
-    isAndroidWebView() {
-        return /Android/.test(navigator.userAgent) && /wv/.test(navigator.userAgent);
-    }
+        return { shared: true };
+    },
 
-    // Check if running in iOS WebView
-    isIOSWebView() {
-        return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream && !navigator.standalone;
-    }
+    getAppLink,
+};
 
-    // Share via Android Java bridge
-    shareViaAndroidBridge(shareData) {
-        if (window.Android && window.Android.shareApp) {
-            try {
-                window.Android.shareApp(shareData.text, shareData.title);
-                return { success: true, method: 'android-bridge' };
-            } catch (error) {
-                console.error('Android bridge error:', error);
-            }
-        }
-        return this.fallbackShare(shareData);
-    }
-
-    // Share via iOS Objective-C bridge
-    shareViaIOSBridge(shareData) {
-        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.shareHandler) {
-            try {
-                window.webkit.messageHandlers.shareHandler.postMessage({
-                    text: shareData.text,
-                    title: shareData.title
-                });
-                return { success: true, method: 'ios-bridge' };
-            } catch (error) {
-                console.error('iOS bridge error:', error);
-            }
-        }
-        return this.fallbackShare(shareData);
-    }
-
-    // Fallback share method (copy to clipboard)
-    fallbackShare(shareData) {
-        return new Promise((resolve) => {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(shareData.text)
-                    .then(() => {
-                        // You can trigger a toast notification here
-                        if (window.showToast) {
-                            window.showToast('App link copied to clipboard!');
-                        } else {
-                            alert('App link copied to clipboard!');
-                        }
-                        resolve({ success: true, method: 'clipboard' });
-                    })
-                    .catch(() => {
-                        // If clipboard fails, just show the text in an alert
-                        alert(shareData.text);
-                        resolve({ success: true, method: 'alert' });
-                    });
-            } else {
-                // Last resort: show alert with the text
-                alert(shareData.text);
-                resolve({ success: true, method: 'alert' });
-            }
-        });
-    }
-
-    // Platform-specific share functions - these intentionally open new windows
-    shareViaWhatsApp() {
-        const appLink = this.getAppLink();
-        const message = encodeURIComponent(`${this.shareText} ${appLink}`);
-        window.open(`https://wa.me/?text=${message}`, '_blank');
-    }
-
-    shareViaFacebook() {
-        const appLink = this.getAppLink();
-        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(appLink)}`, '_blank');
-    }
-
-    shareViaTwitter() {
-        const appLink = this.getAppLink();
-        const message = encodeURIComponent(`${this.shareText} ${appLink}`);
-        window.open(`https://twitter.com/intent/tweet?text=${message}`, '_blank');
-    }
-}
-
-// Create and export singleton instance
-const shareService = new ShareService();
 export default shareService;

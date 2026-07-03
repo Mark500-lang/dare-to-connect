@@ -13,16 +13,13 @@ workflows:
         BUNDLE_ID: "daretoconnect.app.mobile"
         CI: "false"
         DISABLE_ESLINT_PLUGIN: "true"
-        # IAP product identifiers — must match App Store Connect exactly
         IAP_SOCIAL:   "com.daretoconnect.pack.social"
         IAP_COUPLES:  "com.daretoconnect.pack.couples"
         IAP_WELLNESS: "com.daretoconnect.pack.wellness"
         IAP_CAREER:   "com.daretoconnect.pack.career"
         IAP_BUNDLE:   "com.daretoconnect.pack.bundle"
       groups:
-        - DareToConnect   # Must contain: CERTIFICATE, CERTIFICATE_PASSWORD,
-                          # PROVISIONING_PROFILE, REACT_APP_REVENUECAT_IOS_API_KEY,
-                          # REACT_APP_API_KEY
+        - DareToConnect
       node: 22
       xcode: latest
 
@@ -58,7 +55,6 @@ workflows:
       - name: Install Dependencies
         script: |
           set -ex
-          echo "=== Installing Node Modules ==="
           rm -rf node_modules package-lock.json
           npm install
           npm install --save-dev @babel/plugin-proposal-private-property-in-object
@@ -73,6 +69,7 @@ workflows:
             "@capacitor/browser" \
             "@capacitor/device" \
             "@capacitor/status-bar" \
+            "@capacitor/share" \
             "@capacitor/cli" \
             "@revenuecat/purchases-capacitor"; do
             if [ -d "node_modules/$pkg" ]; then
@@ -88,20 +85,52 @@ workflows:
       - name: Build React App
         script: |
           set -ex
-          echo "=== Building React App ==="
+
+          # ── Verify both RC keys are present before baking into the build ──────
+          # If either is missing the JS bundle will have an empty key and RC will
+          # fail to configure on that platform — surfacing as a connection error.
+          if [ -z "$REACT_APP_REVENUECAT_IOS_API_KEY" ]; then
+            echo "❌ REACT_APP_REVENUECAT_IOS_API_KEY is empty"
+            echo "   Add it to the DareToConnect environment group in Codemagic"
+            exit 1
+          fi
+          echo "✅ RC iOS key present (length: ${#REACT_APP_REVENUECAT_IOS_API_KEY})"
+
+          if [ -z "$REACT_APP_REVENUECAT_ANDROID_API_KEY" ]; then
+            echo "❌ REACT_APP_REVENUECAT_ANDROID_API_KEY is empty"
+            echo "   Add it to the DareToConnect environment group in Codemagic"
+            exit 1
+          fi
+          echo "✅ RC Android key present (length: ${#REACT_APP_REVENUECAT_ANDROID_API_KEY})"
+
+          if [ -z "$REACT_APP_API_KEY" ]; then
+            echo "❌ REACT_APP_API_KEY is empty"
+            exit 1
+          fi
+          echo "✅ Backend API key present"
+
+          # Inject all keys into the production build
+          echo "REACT_APP_REVENUECAT_IOS_API_KEY=$REACT_APP_REVENUECAT_IOS_API_KEY"         >> .env.production
+          echo "REACT_APP_REVENUECAT_ANDROID_API_KEY=$REACT_APP_REVENUECAT_ANDROID_API_KEY" >> .env.production
+          echo "REACT_APP_API_KEY=$REACT_APP_API_KEY"                                       >> .env.production
+
           export DISABLE_ESLINT_PLUGIN=true
           export ESLINT_NO_DEV_ERRORS=false
-
-          # Inject RevenueCat iOS key from environment group into the build
-          echo "REACT_APP_REVENUECAT_IOS_API_KEY=$REACT_APP_REVENUECAT_IOS_API_KEY" >> .env.production
-          echo "REACT_APP_API_KEY=$REACT_APP_API_KEY" >> .env.production
-
           npm run build
 
           if [ ! -d "build" ]; then
             echo "❌ React build failed — build directory not found"
             exit 1
           fi
+
+          # Verify the RC iOS key was substituted — if the literal env var name
+          # appears in the bundle, Create React App didn't read .env.production
+          if grep -rl "REACT_APP_REVENUECAT_IOS_API_KEY" build/ 2>/dev/null | grep -q .; then
+            echo "❌ RC iOS key was NOT substituted into the JS bundle"
+            echo "   Check that .env.production is being read by the build"
+            exit 1
+          fi
+          echo "✅ RC keys confirmed substituted into JS bundle"
           echo "✅ React build completed"
 
       # ── PHASE 4: CAPACITOR SYNC + POD INSTALL ────────────────────────────────
@@ -122,22 +151,28 @@ workflows:
           pod repo remove trunk || true
           pod setup
 
-          cat > Podfile << 'EOF'
+          # Detect actual podspec name for @capacitor/share
+          SHARE_POD_NAME=$(grep -i "s\.name" ../../node_modules/@capacitor/share/ios/*.podspec 2>/dev/null \
+            | head -1 | sed "s/.*=\s*['\"]//;s/['\"].*//") || SHARE_POD_NAME="CapacitorShare"
+          echo "✅ Share pod name detected: $SHARE_POD_NAME"
+
+          cat > Podfile << EOF
           platform :ios, '15.0'
           use_frameworks! :linkage => :static
 
           install! 'cocoapods', :deterministic_uuids => false, :integrate_targets => true
 
           target 'App' do
-            # ── Capacitor core ────────────────────────────────────────────────
-            pod 'Capacitor',        :path => '../../node_modules/@capacitor/ios'
-            pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
-            pod 'CapacitorApp',     :path => '../../node_modules/@capacitor/app'
-            pod 'CapacitorBrowser', :path => '../../node_modules/@capacitor/browser'
-            pod 'CapacitorDevice',  :path => '../../node_modules/@capacitor/device'
-            pod 'CapacitorStatusBar', :path => '../../node_modules/@capacitor/status-bar'
+            # Capacitor core
+            pod 'Capacitor',                    :path => '../../node_modules/@capacitor/ios'
+            pod 'CapacitorCordova',             :path => '../../node_modules/@capacitor/ios'
+            pod 'CapacitorApp',                 :path => '../../node_modules/@capacitor/app'
+            pod 'CapacitorBrowser',             :path => '../../node_modules/@capacitor/browser'
+            pod 'CapacitorDevice',              :path => '../../node_modules/@capacitor/device'
+            pod 'CapacitorStatusBar',           :path => '../../node_modules/@capacitor/status-bar'
+            pod '$SHARE_POD_NAME',              :path => '../../node_modules/@capacitor/share'
 
-            # ── RevenueCat — required for non-consumable IAP ──────────────────
+            # RevenueCat — required for non-consumable IAP
             pod 'RevenuecatPurchasesCapacitor', :path => '../../node_modules/@revenuecat/purchases-capacitor'
           end
 
@@ -160,7 +195,6 @@ workflows:
 
           pod install --repo-update
 
-          # Verify RevenueCat was installed
           if grep -q "RevenuecatPurchasesCapacitor" Podfile.lock; then
             echo "✅ RevenueCat successfully installed"
           else
@@ -168,17 +202,21 @@ workflows:
             exit 1
           fi
 
+          if grep -qi "share" Podfile.lock; then
+            echo "✅ Capacitor Share installed"
+          else
+            echo "⚠️  Share plugin may not be installed — check Podfile.lock"
+          fi
+
           cd ../..
           echo "✅ iOS dependencies configured"
 
-      # ── PHASE 5: ENTITLEMENTS — IAP + PUSH ───────────────────────────────────
+      # ── PHASE 5: ENTITLEMENTS ─────────────────────────────────────────────────
       - name: Configure Entitlements
         script: |
           set -ex
           ENTITLEMENTS_PATH="ios/App/App/App.entitlements"
 
-          # Overwrite whatever is in the repo — only push notifications needed
-          # com.apple.developer.in-app-payments is NOT required for StoreKit/RevenueCat IAP
           cat > "$ENTITLEMENTS_PATH" << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -190,7 +228,7 @@ workflows:
           </plist>
           EOF
 
-          echo "✅ Entitlements written:"
+          echo "✅ Entitlements written"
           cat "$ENTITLEMENTS_PATH"
 
           cd ios/App
@@ -248,8 +286,8 @@ workflows:
           set -ex
           cd ios/App
 
-          echo "$CERTIFICATE"            | base64 --decode > signing.p12
-          echo "$PROVISIONING_PROFILE"   | base64 --decode > profile.mobileprovision
+          echo "$CERTIFICATE"          | base64 --decode > signing.p12
+          echo "$PROVISIONING_PROFILE" | base64 --decode > profile.mobileprovision
 
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin \
             <<< $(security cms -D -i profile.mobileprovision 2>/dev/null))
@@ -270,7 +308,6 @@ workflows:
           cp profile.mobileprovision \
             ~/Library/MobileDevice/Provisioning\ Profiles/"$PROFILE_UUID".mobileprovision
 
-          # Bundle ID
           sed -i '' \
             "s/PRODUCT_BUNDLE_IDENTIFIER = com\.yourcompany\.daretoconnect/PRODUCT_BUNDLE_IDENTIFIER = daretoconnect.app.mobile/g" \
             App.xcodeproj/project.pbxproj
@@ -282,17 +319,12 @@ workflows:
             && echo "✅ Bundle ID set" \
             || { echo "❌ Bundle ID not set"; exit 1; }
 
-          # Provisioning profile specifier
           sed -i '' \
             "s|CODE_SIGN_STYLE = Manual;|CODE_SIGN_STYLE = Manual;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"$PROFILE_UUID\";|g" \
             App.xcodeproj/project.pbxproj
-
-          # Deployment target
           sed -i '' \
             's/IPHONEOS_DEPLOYMENT_TARGET = 14.0/IPHONEOS_DEPLOYMENT_TARGET = 15.0/g' \
             App.xcodeproj/project.pbxproj
-
-          # Code sign identity
           sed -i '' \
             's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = "iPhone Distribution"/g' \
             App.xcodeproj/project.pbxproj
@@ -306,7 +338,6 @@ workflows:
           echo "PROFILE_UUID=$PROFILE_UUID"       >> $CM_ENV
           echo "TEAM_IDENTIFIER=$TEAM_IDENTIFIER" >> $CM_ENV
 
-          # Clear signing from Pod targets
           find Pods -name "*.xcconfig" | xargs sed -i '' '/PROVISIONING_PROFILE/d' 2>/dev/null || true
 
           ruby - << 'RUBY'
@@ -339,7 +370,7 @@ workflows:
           cd ios/App/App
           PLIST_PATH="Info.plist"
 
-          CURRENT_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST_PATH" 2>/dev/null || echo "2.7")
+          CURRENT_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST_PATH" 2>/dev/null || echo "3.1")
           MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
           MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
           PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
@@ -357,25 +388,23 @@ workflows:
 
           FINAL=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST_PATH")
           if [ -z "$FINAL" ] || [[ "$FINAL" == *"$"* ]]; then
-            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 3.2" "$PLIST_PATH"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 3.3" "$PLIST_PATH"
             /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_BUILD"     "$PLIST_PATH"
           fi
           echo "✅ Version: $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' $PLIST_PATH) build $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' $PLIST_PATH)"
 
-      # ── PHASE 9: INFO.PLIST — PRIVACY + DEEP LINK + IAP DISCLOSURE ───────────
+      # ── PHASE 9: INFO.PLIST ───────────────────────────────────────────────────
       - name: Add Privacy Descriptions and IAP Disclosure
         script: |
           set -ex
           cd ios/App/App
           PLIST_PATH="Info.plist"
 
-          # ── Status bar ────────────────────────────────────────────────────────
           /usr/libexec/PlistBuddy -c \
             "Add :UIViewControllerBasedStatusBarAppearance bool false" "$PLIST_PATH" 2>/dev/null || \
           /usr/libexec/PlistBuddy -c \
             "Set :UIViewControllerBasedStatusBarAppearance false" "$PLIST_PATH"
 
-          # ── Camera & photo library ────────────────────────────────────────────
           /usr/libexec/PlistBuddy -c \
             "Add :NSCameraUsageDescription string 'Dare to Connect needs camera access to let you take a profile photo.'" \
             "$PLIST_PATH" 2>/dev/null || \
@@ -394,29 +423,19 @@ workflows:
           /usr/libexec/PlistBuddy -c \
             "Set :NSPhotoLibraryAddUsageDescription 'Dare to Connect needs permission to save photos to your library.'" "$PLIST_PATH"
 
-          # ── IAP: SKAdNetworkItems — required for StoreKit 2 / RevenueCat ─────
-          # Apple requires this key when using StoreKit. Without it, IAP calls
-          # may be silently rejected on some OS versions.
-          /usr/libexec/PlistBuddy -c \
-            "Delete :SKAdNetworkItems" "$PLIST_PATH" 2>/dev/null || true
+          # SKAdNetwork — required for StoreKit 2
+          /usr/libexec/PlistBuddy -c "Delete :SKAdNetworkItems" "$PLIST_PATH" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems array" "$PLIST_PATH"
           /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems:0 dict" "$PLIST_PATH"
           /usr/libexec/PlistBuddy -c \
-            "Add :SKAdNetworkItems:0:SKAdNetworkIdentifier string 2U9PT9HC89.skadnetwork" \
-            "$PLIST_PATH"
+            "Add :SKAdNetworkItems:0:SKAdNetworkIdentifier string 2U9PT9HC89.skadnetwork" "$PLIST_PATH"
 
-          # ── IAP product list — helps OS pre-validate products at launch ───────
-          /usr/libexec/PlistBuddy -c \
-            "Delete :SKStoreProductParameterITunesItemIdentifier" "$PLIST_PATH" 2>/dev/null || true
-
-          # Non-consumable type declaration (informational, not required by Apple
-          # but useful for App Review context in the plist)
           /usr/libexec/PlistBuddy -c \
             "Add :IAPProductType string non-consumable" "$PLIST_PATH" 2>/dev/null || \
           /usr/libexec/PlistBuddy -c \
             "Set :IAPProductType non-consumable" "$PLIST_PATH"
 
-          # ── Deep link URL scheme ──────────────────────────────────────────────
+          # Deep link URL scheme
           /usr/libexec/PlistBuddy -c "Delete :CFBundleURLTypes" "$PLIST_PATH" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" "$PLIST_PATH"
           /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" "$PLIST_PATH"
@@ -429,7 +448,6 @@ workflows:
           /usr/libexec/PlistBuddy -c \
             "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string daretoconnect" "$PLIST_PATH"
 
-          # ── Encryption compliance ─────────────────────────────────────────────
           /usr/libexec/PlistBuddy -c \
             "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST_PATH" 2>/dev/null || \
           /usr/libexec/PlistBuddy -c \
@@ -446,7 +464,6 @@ workflows:
             val=$(/usr/libexec/PlistBuddy -c "Print :$key" "$PLIST_PATH" 2>/dev/null || echo "MISSING")
             echo "  $key: $val"
           done
-
           echo "✅ Info.plist fully configured"
 
       # ── PHASE 10: BUILD ARCHIVE ───────────────────────────────────────────────
@@ -480,6 +497,8 @@ workflows:
           set -ex
           cd ios/App
 
+          # iCloudContainerEnvironment removed — only for CloudKit apps
+          # its presence caused entitlement mismatches with StoreKit on iOS
           cat > build/exportOptions.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -502,9 +521,6 @@ workflows:
               <true/>
               <key>uploadBitcode</key>
               <false/>
-              <!-- Declare non-consumable IAP products for App Review -->
-              <key>iCloudContainerEnvironment</key>
-              <string>Production</string>
           </dict>
           </plist>
           EOF
@@ -522,8 +538,6 @@ workflows:
       - name: Validate Build and Prepare Artifacts
         script: |
           set -ex
-          echo "=== Validating IPA ==="
-
           [ -f "ios/App/build/ipa/App.ipa" ] || { echo "❌ IPA not found"; exit 1; }
 
           unzip -l "ios/App/build/ipa/App.ipa" | grep "Payload/App.app" || \
@@ -534,9 +548,13 @@ workflows:
           codesign -dv --verbose=4 "$TEMP_DIR/Payload/App.app" 2>&1 \
             | grep -E 'Authority=Apple Distribution|TeamIdentifier=' \
             || { echo "❌ Signing verification failed"; exit 1; }
+
+          # Confirm no iCloudContainerEnvironment in the signed entitlements
+          codesign -d --entitlements - "$TEMP_DIR/Payload/App.app" 2>/dev/null \
+            | grep -i "icloud" && echo "⚠️  iCloud entitlement present — should not be" || \
+            echo "✅ No iCloud entitlement (correct)"
           rm -rf "$TEMP_DIR"
 
-          # Check RevenueCat is in the binary
           if unzip -p ios/App/build/ipa/App.ipa "Payload/App.app/App" 2>/dev/null \
               | strings | grep -q "RevenueCat"; then
             echo "✅ RevenueCat found in binary"
@@ -544,10 +562,9 @@ workflows:
             echo "⚠️  RevenueCat string not found — verify RC pod was linked"
           fi
 
-          # Check all 5 IAP product IDs are referenced in the binary
-          echo "=== Checking IAP product IDs in binary ==="
           TEMP2=$(mktemp -d)
           unzip -q ios/App/build/ipa/App.ipa -d "$TEMP2"
+          echo "=== Checking IAP product IDs ==="
           for product_id in \
             "com.daretoconnect.pack.social" \
             "com.daretoconnect.pack.couples" \
@@ -557,12 +574,11 @@ workflows:
             if strings "$TEMP2/Payload/App.app/App" | grep -q "$product_id"; then
               echo "  ✅ $product_id"
             else
-              echo "  ⚠️  $product_id not found in binary strings (may be in JS bundle)"
+              echo "  ⚠️  $product_id not found in binary (may be in JS bundle — OK)"
             fi
           done
           rm -rf "$TEMP2"
 
-          # Save plist for audit
           cd ios/App/App
           cp Info.plist Final_Info_Plist_Verification.plist
           echo "=== FINAL INFO.PLIST ===" > Info_Plist_Verification.txt
@@ -575,7 +591,7 @@ workflows:
       - ios/App/build/ipa/App.ipa
       - ios/App/App/Final_Info_Plist_Verification.plist
       - ios/App/App/Info_Plist_Verification.txt
-      - ios/App/build/xcodebuild.log   # always save the build log for debugging
+      - ios/App/build/xcodebuild.log
 
     publishing:
       app_store_connect:

@@ -62,10 +62,9 @@ const SideBar = ({ onItemClick, isOpen = true, profileImage, onClose, enableGest
                 navigate('/help');
                 break;
             case 'referral':
-                // Use share service for native sharing
                 await shareService.shareApp();
-                setActiveItem(prev => prev); // Don't change active item for share
-                break;
+                if (window.innerWidth <= 768) onClose?.();
+                return;
             case 'logout':
                 logout();
                 navigate('/'); // Redirect to splash screen

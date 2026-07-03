@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import authService from '../services/authService';
 import gameService from '../services/gameService';
 import { Snackbar, Alert } from '@mui/material';
+import subscriptionService from '../services/subscriptionService';
 
 const AuthContext = createContext();
 
@@ -28,6 +29,12 @@ export const AuthProvider = ({ children }) => {
     const initializeAuth = async () => {
         setLoading(true);
         try {
+            // Initialise RevenueCat immediately on app start — before any UI
+            // This gives StoreKit time to establish its session before purchase
+            subscriptionService.initializeRevenueCat().catch(e => {
+                console.warn('[Auth] RC pre-init failed (non-fatal):', e.message);
+            });
+
             if (authService.isAuthenticated()) {
                 const userData = authService.getUser();
                 setUser(userData);
