@@ -344,7 +344,7 @@ workflows:
           cd ios/App/App
           PLIST_PATH="Info.plist"
 
-          CURRENT_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST_PATH" 2>/dev/null || echo "2.7")
+          CURRENT_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST_PATH" 2>/dev/null || echo "3.3")
           MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
           MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
           PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
@@ -362,7 +362,7 @@ workflows:
 
           FINAL=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST_PATH")
           if [ -z "$FINAL" ] || [[ "$FINAL" == *"$"* ]]; then
-            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 3.3" "$PLIST_PATH"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 3.4" "$PLIST_PATH"
             /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_BUILD"     "$PLIST_PATH"
           fi
           echo "✅ Version: $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' $PLIST_PATH) build $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' $PLIST_PATH)"
